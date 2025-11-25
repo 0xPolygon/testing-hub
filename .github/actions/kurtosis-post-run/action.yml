@@ -87,3 +87,8 @@ runs:
             echo "------------------------------"
             echo
           done
+
+    - name: Delete enclave
+      if: ${{ env.ACT }} && steps.enclave-check.outputs.ENCLAVE_EXISTS == 'true'
+      shell: bash
+      run: kurtosis enclave rm --force "${{ inputs.enclave_name }}"
