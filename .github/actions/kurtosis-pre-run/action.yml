@@ -1,0 +1,138 @@
+name: kurtosis-pre-run
+description: Prepare the environment for deploying kurtosis packages
+
+inputs:
+  docker_username:
+    description: The username for Docker Hub
+    required: true
+  docker_token:
+    description: The token for Docker Hub
+    required: true
+  gcr_registry:
+    description: The GCR registry to pull images from
+    default: europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual
+
+  # tool versions
+  kurtosis_version:
+    description: Version of kurtosis to install
+    default: "1.11.1"
+  foundry_version:
+    description: Version of foundry to install
+    default: "1.5.0"
+  python_version:
+    description: Version of python to install
+    default: "3.13"
+
+runs:
+  using: composite
+  steps:
+    - name: Free up disk space
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: false
+        docker-images: true
+        swap-storage: true
+
+    # Install dependencies
+    - name: Install kurtosis
+      shell: bash
+      run: |
+        echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+        sudo apt update
+        sudo apt install -y kurtosis-cli=${{ inputs.kurtosis_version }}
+        kurtosis analytics disable
+        kurtosis version
+    
+    - name: Install python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install jq
+      shell: bash
+      run: |
+        sudo apt update
+        sudo apt install -y jq
+        jq --version
+
+    - name: Install yq
+      shell: bash
+      run: |
+        pip3 install yq
+        yq --version
+
+    - name: Install foundry
+      uses: foundry-rs/foundry-toolchain@de808b1eea699e761c404bda44ba8f21aba30b2c # v1.3.1
+      with:
+        version: v${{ inputs.foundry_version }}
+        cache: false
+
+    # Login to registries
+    - name: Login to docker registry
+      uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+      with:
+        username: ${{ inputs.docker_username }}
+        password: ${{ inputs.docker_token }}
+
+    - name: Login to github container registry
+      uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    # Pull images from GCR
+    - name: Add registry prefix to image names
+      shell: bash
+      run: |
+        script_path=$(realpath "${{ github.action_path }}/../../actions/kurtosis-pre-run/add-registry-prefix.py")
+        python3 "${script_path}" --registry-prefix "${{ inputs.gcr_registry }}"
+
+    - name: Log in to GCR
+      uses: google-github-actions/auth@v2.0.0
+      with:
+        workload_identity_provider: "projects/337907489413/locations/global/workloadIdentityPools/github-wif/providers/github"
+        service_account: "kurtosis-cdk-ci@prj-polygonlabs-devtools-dev.iam.gserviceaccount.com"
+
+    - name: Configure Docker to use GCR
+      shell: bash
+      run: gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+    - name: Pre pull package images from GCR
+      shell: bash
+      run: cat modified-images.txt | xargs -n 1 -P 8 docker pull
+
+    - name: Pre pull kurtosis core images from GCR
+      shell: bash
+      run: |
+        images=(
+          # kurtosis core
+          "kurtosistech/engine:1.11.1"
+          "kurtosistech/core:1.11.1"
+          "kurtosistech/files-artifacts-expander:1.11.1"
+          "traefik:2.10.6"
+          "timberio/vector:0.45.0-debian"
+
+          # ethereum-package
+          "alpine:3.17"
+          "badouralix/curl-jq:latest"
+          "protolambda/eth2-val-tools:latest"
+          "ethpandaops/ethereum-genesis-generator:5.0.6"
+          "mslipper/deployment-utils:latest"
+        )
+        registry="${{ inputs.gcr_registry }}"
+        for image in "${images[@]}"; do
+          {
+            docker pull "${registry}/${image}"
+            docker tag "${registry}/${image}" "${image}"
+          } &
+        done
+        wait
+
+    - name: Display docker images
+      shell: bash
+      run: docker images
