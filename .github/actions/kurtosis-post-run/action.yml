@@ -22,13 +22,7 @@ runs:
         else
           echo "ENCLAVE_EXISTS=false" >> "${GITHUB_OUTPUT}"
           echo "Enclave ${{ inputs.enclave_name }} does not exist"
-        fi
-
-    - name: Monitor the rollup
-      if: steps.enclave-check.outputs.ENCLAVE_EXISTS == 'true'
-      shell: bash
-      run: |
-        
+        fi 
 
     - name: Dump enclave
       if: steps.enclave-check.outputs.ENCLAVE_EXISTS == 'true'
