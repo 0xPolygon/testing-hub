@@ -153,7 +153,7 @@ jobs:
         run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} github.com/0xPolygon/kurtosis-cdk@v${{ inputs.kurtosis_package_version }}
 
       - name: Monitor rollup
-        working-directory: .github/actions/kurtosis-post-run
+        working-directory: .github/actions/scripts
         run: |
           l2_rpc_service_name="op-el-1-op-geth-op-node-001"
           export RPC_URL=$(kurtosis port print ${{ env.ENCLAVE_NAME }} ${l2_rpc_service_name} rpc)
