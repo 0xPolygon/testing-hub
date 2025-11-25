@@ -12,7 +12,6 @@ on:
           - sovereign
           - aggchain-ecdsa-multisig
         default: rollup
-        required: true
 
       # Component versions
       aggkit_version:
@@ -42,7 +41,6 @@ on:
       op_proposer_version:
         description: op-proposer version to use (only for sovereign type)
         type: string
-        default: "1.10.0"
       op_succinct_proposer_version:
         description: op-succinct-proposer version to use (only for rollup type)
         type: string
@@ -60,7 +58,7 @@ on:
       e2e_test_version:
         description: Version of the e2e test package to use
         type: string
-        required: "6a06f5b"
+        default: "6a06f5b"
       e2e_test_tags:
         description: Tags to use for the e2e test package
         type: string
@@ -70,7 +68,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Pre kurtosis run
         uses: ./.github/actions/kurtosis-pre-run
@@ -85,21 +83,22 @@ jobs:
           echo "ENCLAVE_NAME=${enclave_name}"
 
       - name: Clone 0xPolygon/kurtosis-cdk repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: 0xPolygon/kurtosis-cdk
-          ref: ${{ inputs.kurtosis_package_version }}
+          ref: v${{ inputs.kurtosis_package_version }}
+          path: kurtosis-cdk
 
       - name: Customize args file
         run: |
           # Select args file based on stack type
           args_file=""
           if [[ "${{ inputs.type }}" == "rollup" ]]; then
-            args_file=".github/tests/op-succinct/mock-prover.yml"
+            args_file="./kurtosis-cdk/.github/tests/op-succinct/mock-prover.yml"
           elif [[ "${{ inputs.type }}" == "sovereign" ]]; then
-            args_file=".github/tests/op-geth/sovereign.yml"
+            args_file="./kurtosis-cdk/.github/tests/op-geth/sovereign.yml"
           elif [[ "${{ inputs.type }}" == "aggchain-ecdsa-multisig" ]]; then
-            args_file=".github/tests/op-geth/aggchain-ecdsa-multisig.yml"
+            args_file="./kurtosis-cdk/.github/tests/op-geth/aggchain-ecdsa-multisig.yml"
           else
             echo "Unknown stack type: ${{ inputs.type }}"
             exit 1
@@ -109,41 +108,41 @@ jobs:
 
           # Customize component versions
           if [[ "${{ inputs.aggkit_version }}" ]]; then
-            yq -y -i '.args.aggkit_image = ghcr.io/agglayer/aggkit:${{ inputs.aggkit_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.aggkit_image = \"ghcr.io/agglayer/aggkit:${{ inputs.aggkit_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.aggkit_prover_version }}" ]]; then
-            yq -y -i '.args.aggkit_prover_image = ghcr.io/agglayer/aggkit-prover:${{ inputs.aggkit_prover_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.aggkit_prover_image = \"ghcr.io/agglayer/aggkit-prover:${{ inputs.aggkit_prover_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.agglayer_version }}" ]]; then
-            yq -y -i '.args.agglayer_image = ghcr.io/agglayer/agglayer:${{ inputs.agglayer_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.agglayer_image = \"ghcr.io/agglayer/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_geth_version }}" ]]; then
-            yq -y -i '.args.op_geth_image = us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v${{ inputs.op_geth_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.op_geth_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v${{ inputs.op_geth_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_node_version }}" ]]; then
-            yq -y -i '.args.op_node_image = us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v${{ inputs.op_node_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.op_node_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v${{ inputs.op_node_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_batcher_version }}" ]]; then
-            yq -y -i '.args.op_batcher_image = us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v${{ inputs.op_batcher_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.op_batcher_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v${{ inputs.op_batcher_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_proposer_version }}" ]]; then
-            if [[ "${{ inputs.type }}" == "rollup" ]]; then
-              yq -y -i '.args.op_proposer_image = us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v${{ inputs.op_proposer_version }}' ${args_file}
+            if [[ "${{ inputs.type }}" == "sovereign" ]]; then
+              yq --yaml-roundtrip --in-place ".args.op_proposer_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v${{ inputs.op_proposer_version }}\"" ${args_file}
             else
-              echo "op_proposer_version is only applicable for 'rollup' type"
+              echo "op_proposer_version is only applicable for 'sovereign' type"
               exit 1
             fi
           fi
           if [[ "${{ inputs.op_succinct_proposer_version }}" ]]; then
-            if [[ "${{ inputs.type }}" == "sovereign" ]]; then
-              yq -y -i '.args.op_succinct_proposer_image = ghcr.io/agglayer/op-succinct/op-succinct-agglayer:v${{ inputs.op_succinct_proposer_version }}' ${args_file}
+            if [[ "${{ inputs.type }}" == "rollup" ]]; then
+              yq --yaml-roundtrip --in-place ".args.op_succinct_proposer_image = \"ghcr.io/agglayer/op-succinct/op-succinct-agglayer:v${{ inputs.op_succinct_proposer_version }}\"" ${args_file}
             else
-              echo "op_succinct_proposer_version is only applicable for 'sovereign' type"
+              echo "op_succinct_proposer_version is only applicable for 'rollup' type"
               exit 1
             fi
           fi
           if [[ "${{ inputs.zkevm_bridge_service_version }}" ]]; then
-            yq -y -i '.args.zkevm_bridge_service_image = ghcr.io/0xpolygon/zkevm-bridge-service:v${{ inputs.zkevm_bridge_service_version }}' ${args_file}
+            yq --yaml-roundtrip --in-place ".args.zkevm_bridge_service_image = \"ghcr.io/0xpolygon/zkevm-bridge-service:v${{ inputs.zkevm_bridge_service_version }}\"" ${args_file}
           fi
 
           # Display the customized args file
@@ -161,7 +160,7 @@ jobs:
           ./monitor.sh
       
       - name: Clone agglayer/e2e repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: agglayer/e2e
           ref: ${{ inputs.e2e_test_version }}
