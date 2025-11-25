@@ -15,6 +15,7 @@ inputs:
   # tool versions
   kurtosis_version:
     description: Version of kurtosis to install
+    # default: "1.13.2"
     default: "1.11.1"
   foundry_version:
     description: Version of foundry to install
@@ -27,6 +28,7 @@ runs:
   using: composite
   steps:
     - name: Free up disk space
+      if: ${{ !env.ACT }}
       uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
       with:
         tool-cache: false
@@ -85,54 +87,14 @@ runs:
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
-    # Pull images from GCR
-    - name: Add registry prefix to image names
-      shell: bash
-      run: |
-        script_path=$(realpath "${{ github.action_path }}/../../actions/kurtosis-pre-run/add-registry-prefix.py")
-        python3 "${script_path}" --registry-prefix "${{ inputs.gcr_registry }}"
-
     - name: Log in to GCR
+      if: ${{ !env.ACT }}
       uses: google-github-actions/auth@v2.0.0
       with:
         workload_identity_provider: "projects/337907489413/locations/global/workloadIdentityPools/github-wif/providers/github"
         service_account: "kurtosis-cdk-ci@prj-polygonlabs-devtools-dev.iam.gserviceaccount.com"
 
     - name: Configure Docker to use GCR
+      if: ${{ !env.ACT }}
       shell: bash
       run: gcloud auth configure-docker europe-west2-docker.pkg.dev
-
-    - name: Pre pull package images from GCR
-      shell: bash
-      run: cat modified-images.txt | xargs -n 1 -P 8 docker pull
-
-    - name: Pre pull kurtosis core images from GCR
-      shell: bash
-      run: |
-        images=(
-          # kurtosis core
-          "kurtosistech/engine:1.11.1"
-          "kurtosistech/core:1.11.1"
-          "kurtosistech/files-artifacts-expander:1.11.1"
-          "traefik:2.10.6"
-          "timberio/vector:0.45.0-debian"
-
-          # ethereum-package
-          "alpine:3.17"
-          "badouralix/curl-jq:latest"
-          "protolambda/eth2-val-tools:latest"
-          "ethpandaops/ethereum-genesis-generator:5.0.6"
-          "mslipper/deployment-utils:latest"
-        )
-        registry="${{ inputs.gcr_registry }}"
-        for image in "${images[@]}"; do
-          {
-            docker pull "${registry}/${image}"
-            docker tag "${registry}/${image}" "${image}"
-          } &
-        done
-        wait
-
-    - name: Display docker images
-      shell: bash
-      run: docker images
