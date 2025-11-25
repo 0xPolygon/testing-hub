@@ -21,7 +21,7 @@ on:
       aggkit_prover_version:
         description: aggkit-prover version to use (only for rollup type)
         type: string
-        default: "1.4.2"
+        default: "1.8.0"
       agglayer_version:
         description: agglayer version to use
         type: string
@@ -92,13 +92,13 @@ jobs:
       - name: Customize args file
         run: |
           # Select args file based on stack type
-          args_file=""
+          args_file="${{ github.workspace }}/kurtosis-cdk/.github/tests/"
           if [[ "${{ inputs.type }}" == "rollup" ]]; then
-            args_file="./kurtosis-cdk/.github/tests/op-succinct/mock-prover.yml"
+            args_file+="op-succinct/mock-prover.yml"
           elif [[ "${{ inputs.type }}" == "sovereign" ]]; then
-            args_file="./kurtosis-cdk/.github/tests/op-geth/sovereign.yml"
+            args_file+="op-geth/sovereign.yml"
           elif [[ "${{ inputs.type }}" == "aggchain-ecdsa-multisig" ]]; then
-            args_file="./kurtosis-cdk/.github/tests/op-geth/aggchain-ecdsa-multisig.yml"
+            args_file+="op-geth/aggchain-ecdsa-multisig.yml"
           else
             echo "Unknown stack type: ${{ inputs.type }}"
             exit 1
@@ -150,7 +150,7 @@ jobs:
 
       - name: Kurtosis run
         working-directory: kurtosis-cdk
-        run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} github.com/0xPolygon/kurtosis-cdk@${{ inputs.kurtosis_package_version }}
+        run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} github.com/0xPolygon/kurtosis-cdk@v${{ inputs.kurtosis_package_version }}
 
       - name: Monitor rollup
         working-directory: .github/actions/kurtosis-post-run
