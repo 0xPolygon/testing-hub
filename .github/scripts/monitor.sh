@@ -2,7 +2,20 @@
 set -euo pipefail
 
 # Monitor rollup until block finalization height is reached.
+# Usage: RPC_URL=<rpc_url> ./monitor.sh
 
+# Helper function to format key=value pairs
+_format_fields() {
+  local msg="$1"
+  shift
+  local fields=""
+  for arg in "$@"; do
+    fields="$fields $arg"
+  done
+  echo "$msg$fields"
+}
+
+# Logging functions
 timestamp() { date +"%Y-%m-%d %H:%M:%S"; }
 log_info() { echo "$(timestamp) INFO $(_format_fields "$@")"; }
 log_error() { echo "$(timestamp) ERROR $(_format_fields "$@")"; }
@@ -10,10 +23,11 @@ log_error() { echo "$(timestamp) ERROR $(_format_fields "$@")"; }
 default_rpc_url=""
 rpc_url=${RPC_URL:-$default_rpc_url}
 if [[ -z "${rpc_url}" ]]; then
-  log_error "No RPC URL provided"
+  log_error "No rpc url provided"
   exit 1
 fi
-log_info "Using RPC URL: ${rpc_url}"
+log_info "Using rpc url: ${rpc_url}"
+export ETH_RPC_URL="${rpc_url}"
 
 default_target_block=50
 target_block=${TARGET_BLOCK:-$default_target_block}
