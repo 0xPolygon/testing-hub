@@ -86,12 +86,13 @@ runs:
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
-    - name: Log in to GCR
-      if: ${{ !env.ACT }}
-      uses: google-github-actions/auth@v2.0.0
-      with:
-        workload_identity_provider: "projects/337907489413/locations/global/workloadIdentityPools/github-wif/providers/github"
-        service_account: "testing-hub-ci@prj-polygonlabs-devtools-dev.iam.gserviceaccount.com"
+    # Note: disable this step for now as there is something wrong in the WIF configuration
+    # - name: Log in to GCR
+    #   if: ${{ !env.ACT }}
+    #   uses: google-github-actions/auth@v2.0.0
+    #   with:
+    #     workload_identity_provider: "projects/337907489413/locations/global/workloadIdentityPools/github-wif/providers/github"
+    #     service_account: "testing-hub-ci@prj-polygonlabs-devtools-dev.iam.gserviceaccount.com"
 
     - name: Configure Docker to use GCR
       if: ${{ !env.ACT }}
