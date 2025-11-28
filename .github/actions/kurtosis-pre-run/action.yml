@@ -8,9 +8,6 @@ inputs:
   docker_token:
     description: The token for Docker Hub
     required: true
-  gcr_registry:
-    description: The GCR registry to pull images from
-    default: europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual
 
   # tool versions
   kurtosis_version:
