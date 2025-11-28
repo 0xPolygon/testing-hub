@@ -161,7 +161,7 @@ jobs:
           fi
 
           # Display the customized args file
-          yq . ${args_file}
+          cat ${args_file}
 
       - name: Kurtosis run
         working-directory: kurtosis-cdk
