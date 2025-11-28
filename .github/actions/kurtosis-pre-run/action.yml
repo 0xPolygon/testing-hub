@@ -19,6 +19,9 @@ inputs:
   foundry_version:
     description: Version of foundry to install
     default: "1.5.0"
+  polycli_version:
+    description: Version of polygon-cli to install
+    default: "0.1.97"
   python_version:
     description: Version of python to install
     default: "3.13"
@@ -71,6 +74,23 @@ runs:
       with:
         version: v${{ inputs.foundry_version }}
         cache: false
+    
+    - name: Install bats
+      uses: bats-core/bats-action@42fcc8700f773c075a16a90eb11674c0318ad507 # 3.0.1
+      with:
+        support-path: ${{ github.workspace }}/lib/bats-support
+        assert-path: ${{ github.workspace }}/lib/bats-assert
+        detik-path: ${{ github.workspace }}/lib/bats-detik
+        file-path: ${{ github.workspace }}/lib/bats-file
+
+    - name: Install polycli
+      run: |
+        polycli_version="v${{ inputs.polycli_version }}"
+        pushd $(mktemp -d) || exit 1
+        curl -s -L "https://github.com/0xPolygon/polygon-cli/releases/download/${polycli_version}/polycli_${polycli_version}_linux_amd64.tar.gz" > polycli.tar.gz
+        tar xf polycli.tar.gz
+        mv polycli_* /usr/local/bin/polycli
+        polycli version
 
     # Login to registries
     - name: Login to docker registry
