@@ -164,7 +164,7 @@ jobs:
 
       - name: Kurtosis run
         working-directory: kurtosis-cdk
-        run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} github.com/0xPolygon/kurtosis-cdk@v${{ inputs.kurtosis_package_version }}
+        run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} .
 
       - name: Monitor rollup
         working-directory: .github/actions/scripts
