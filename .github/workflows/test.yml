@@ -62,7 +62,7 @@ on:
       kurtosis_package_version:
         description: kurtosis-cdk package version
         type: string
-        default: "0.5.9"
+        default: "0.5.10"
       e2e_test_version:
         description: e2e test version
         type: string
