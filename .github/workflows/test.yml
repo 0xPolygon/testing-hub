@@ -38,8 +38,8 @@ on:
         description: op-node version
         type: string
         default: "1.16.2"
-      op_deployer_version:
-        description: op-deployer version
+      op_contract_deployer_version:
+        description: op-contract-deployer version
         type: string
         default: "0.4.5-cdk"
       op_batcher_version:
@@ -134,8 +134,8 @@ jobs:
           if [[ "${{ inputs.op_node_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.op_node_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v${{ inputs.op_node_version }}\"" ${args_file}
           fi
-          if [[ "${{ inputs.op_deployer_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.op_deployer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/op-deployer:v${{ inputs.op_deployer_version }}\"" ${args_file}
+          if [[ "${{ inputs.op_contract_deployer_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".args.op_contract_deployer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/op-deployer:v${{ inputs.op_contract_deployer_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_batcher_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.op_batcher_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v${{ inputs.op_batcher_version }}\"" ${args_file}
