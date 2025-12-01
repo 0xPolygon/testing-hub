@@ -81,6 +81,7 @@ runs:
         file-path: ${{ github.workspace }}/lib/bats-file
 
     - name: Install polycli
+      shell: bash
       run: |
         polycli_version="v${{ inputs.polycli_version }}"
         pushd $(mktemp -d) || exit 1
