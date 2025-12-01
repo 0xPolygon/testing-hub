@@ -117,7 +117,7 @@ jobs:
 
           # Customize component versions
           if [[ "${{ inputs.agglayer_contracts_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.agglayer_contracts_version = \"${{ inputs.agglayer_contracts_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".args.agglayer_contracts_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer-contracts:v${{ inputs.agglayer_contracts_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.aggkit_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.aggkit_image = \"ghcr.io/agglayer/aggkit:${{ inputs.aggkit_version }}\"" ${args_file}
