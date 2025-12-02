@@ -59,6 +59,9 @@ on:
         type: string
         default: "600" # 10min for now
 
+env:
+  SLACK_CHANNEL_ID: C09UY6RJ38U
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -164,3 +167,32 @@ jobs:
         uses: ./.github/actions/kurtosis-post-run
         with:
           enclave_name: ${{ env.ENCLAVE_NAME }}
+
+      - name: Report to slack
+        if: always()
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          payload: |
+            {
+              "channel": ${{ env.SLACK_CHANNEL_ID }},
+              "text": "Test Summary: kurtosis-cdk-op-geth",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "kurtosis-cdk-op-geth: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}",
+                    "text": "*Job Status:* ${{ job.status == 'success' && '✅ Success' || job.status == 'failure' && '❌ Failed' || job.status == 'cancelled' && '⚠️ Cancelled' || '⚠️ ' + job.status }}\n*Stack Type:* ${{ inputs.stack_type }}\n*Environment Duration:* ${{ inputs.environment_duration_seconds }}s"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Links:*\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow Run>\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}#step:4:1|Args File>\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }}#step:8:1|Logs>"
+                  }
+                }
+              ]
+            }
