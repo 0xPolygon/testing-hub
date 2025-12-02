@@ -153,7 +153,7 @@ jobs:
           enclave_name="kurtosis-cdk-op-geth-${{ inputs.stack_type }}"
           echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
           echo "ENCLAVE_NAME=${enclave_name}"
-          kurtosis run --enclave ${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} .
+          kurtosis run --enclave $ENCLAVE_NAME --args-file ${{ env.ARGS_FILE }} .
 
       - name: Inspect enclave
         run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
