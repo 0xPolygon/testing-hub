@@ -72,7 +72,7 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_token: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Clone 0xPolygon/kurtosis-cdk repository
+      - name: Clone 0xPolygon/kurtosis-cdk
         uses: actions/checkout@v6
         with:
           repository: 0xPolygon/kurtosis-cdk
