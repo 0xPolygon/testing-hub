@@ -161,17 +161,20 @@ jobs:
 
       - name: Kurtosis run
         working-directory: kurtosis-cdk
-        run: kurtosis run --enclave=${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} .
+        run: kurtosis run --enclave ${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} .
+
+      - name: Inspect enclave
+        run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
 
       - name: Monitor rollup
-        working-directory: .github/actions/scripts
+        working-directory: .github/scripts
         run: |
           l2_rpc_service_name="op-el-1-op-geth-op-node-001"
           export RPC_URL=$(kurtosis port print ${{ env.ENCLAVE_NAME }} ${l2_rpc_service_name} rpc)
           ./monitor.sh
       
       - name: Idle for test duration
-        working-directory: .github/actions/scripts
+        working-directory: .github/scripts
         run: ./idle.sh ${{ inputs.test_duration_seconds }}
 
       - name: Post kurtosis run
