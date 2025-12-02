@@ -57,7 +57,7 @@ on:
       environment_duration_seconds:
         description: How long to keep the test environment running (in seconds)
         type: string
-        default: "3600" # 60min
+        default: "600" # 10min for now
 
 jobs:
   test:
