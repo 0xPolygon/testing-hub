@@ -4,21 +4,9 @@ set -euo pipefail
 # Monitor rollup until block finalization height is reached.
 # Usage: RPC_URL=<rpc_url> ./monitor.sh
 
-# Helper function to format key=value pairs
-_format_fields() {
-  local msg="$1"
-  shift
-  local fields=""
-  for arg in "$@"; do
-    fields="$fields $arg"
-  done
-  echo "$msg$fields"
-}
-
-# Logging functions
-timestamp() { date +"%Y-%m-%d %H:%M:%S"; }
-log_info() { echo "$(timestamp) INFO $(_format_fields "$@")"; }
-log_error() { echo "$(timestamp) ERROR $(_format_fields "$@")"; }
+# Source logging library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/log.sh"
 
 default_rpc_url=""
 rpc_url=${RPC_URL:-$default_rpc_url}
