@@ -184,7 +184,6 @@ jobs:
                   "text": {
                     "type": "mrkdwn",
                     "text": "kurtosis-cdk-op-geth: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}",
-                    "text": "*Job Status:* ${{ job.status == 'success' && '✅ Success' || job.status == 'failure' && '❌ Failed' || job.status == 'cancelled' && '⚠️ Cancelled' || '⚠️ ' + job.status }}\n*Stack Type:* ${{ inputs.stack_type }}\n*Environment Duration:* ${{ inputs.environment_duration_seconds }}s"
                   }
                 },
                 {
