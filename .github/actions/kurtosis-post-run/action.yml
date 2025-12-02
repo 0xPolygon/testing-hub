@@ -39,11 +39,19 @@ runs:
         echo "ARCHIVE_NAME=${archive_name}"
 
     - name: Upload enclave dump
+      id: artifact-upload-step
       if: steps.enclave-check.outputs.ENCLAVE_EXISTS == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.archive-name.outputs.ARCHIVE_NAME }}
         path: ./dump
+    
+    - name: Save artifact link
+      shell: bash
+      run: |
+        artifact_link="https://api.github.com/repos/${{ github.repository }}/actions/artifacts/${{ steps.artifact-upload-step.outputs.artifact-id }}"
+        echo "ARTIFACT_LINK=${artifact_link}" >> "${GITHUB_ENV}"
+        echo "ARTIFACT_LINK=${artifact_link}"
 
     - name: Check for stopped services
       if: steps.enclave-check.outputs.ENCLAVE_EXISTS == 'true'
