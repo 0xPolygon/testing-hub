@@ -14,6 +14,10 @@ on:
         default: rollup
 
       # Component versions
+      kurtosis_package_version:
+        description: kurtosis-cdk package version
+        type: string
+        default: "0.5.10"
       agglayer_contracts_version:
         description: agglayer-contracts version
         type: string
@@ -58,19 +62,11 @@ on:
         type: string
         default: "0.6.3-RC7"
 
-      # Package and test versions
-      kurtosis_package_version:
-        description: kurtosis-cdk package version
+      # Test details
+      test_duration_seconds:
+        description: duration to run the tests for, in seconds
         type: string
-        default: "0.5.10"
-      e2e_test_version:
-        description: e2e test version
-        type: string
-        default: "6a06f5b"
-      e2e_test_tags:
-        description: e2e test tags
-        type: string
-        default: "bridge"
+        default: "3600" # 60min
 
 jobs:
   test:
@@ -174,22 +170,9 @@ jobs:
           export RPC_URL=$(kurtosis port print ${{ env.ENCLAVE_NAME }} ${l2_rpc_service_name} rpc)
           ./monitor.sh
       
-      - name: Clone agglayer/e2e repository
-        uses: actions/checkout@v6
-        with:
-          repository: agglayer/e2e
-          ref: ${{ inputs.e2e_test_version }}
-
-      - name: Run e2e tests
-        working-directory: e2e
-        run: |
-          set -a
-          source ./tests/.env
-          set +a
-          export BATS_LIB_PATH="$PWD/core/helpers/lib"
-          export PROJECT_ROOT="$PWD"
-          export ENCLAVE_NAME="${{ env.ENCLAVE_NAME }}"
-          bats --filter-tags ${{ inputs.e2e_test_flags }} .
+      - name: Idle for test duration
+        working-directory: .github/actions/scripts
+        run: ./idle.sh ${{ inputs.test_duration_seconds }}
 
       - name: Post kurtosis run
         if: always()
