@@ -154,7 +154,7 @@ jobs:
 
       - name: Inspect enclave
         run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
-      
+
       - name: Monitor system
         working-directory: .github/scripts
         run: ./idle.sh ${{ inputs.environment_duration_seconds }}
