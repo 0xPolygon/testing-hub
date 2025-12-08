@@ -5,7 +5,7 @@ on:
     inputs:
       # Stack deployment configuration
       stack_type:
-        description: Type of op-geth stack to deploy
+        description: type of op-geth stack to deploy
         type: string
         default: rollup # mock-prover
 
@@ -17,7 +17,7 @@ on:
         type: string
         default: "0.7.2"
       aggkit_prover_version:
-        description: only for rollup type
+        description: aggkit_prover_version (only for rollup type)
         type: string
         default: "1.8.0"
       agglayer_version:
@@ -39,11 +39,11 @@ on:
         type: string
         default: "1.16.2"
       op_proposer_version:
-        description: only for sovereign type
+        description: op_proposer_version (only for sovereign type)
         type: string
         default: "1.10.0"
       op_succinct_proposer_version:
-        description: only for rollup type
+        description: op_succinct_proposer_version (only for rollup type)
         type: string
         default: "3.4.0-rc.1-agglayer"
       zkevm_bridge_service_version:
@@ -52,7 +52,7 @@ on:
 
       # Test environment configuration
       environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+        description: how long to keep the test environment running (in seconds)
         type: string
         default: "120" # 2min for now
 
@@ -60,7 +60,7 @@ on:
     inputs:
       # Stack deployment configuration
       stack_type:
-        description: Type of op-geth stack to deploy
+        description: type of op-geth stack to deploy
         type: choice
         options:
           - rollup # mock prover
@@ -76,7 +76,7 @@ on:
         type: string
         default: "0.7.2"
       aggkit_prover_version:
-        description: only for rollup type
+        description: aggkit_prover_version (only for rollup type)
         type: string
         default: "1.8.0"
       agglayer_version:
@@ -98,11 +98,11 @@ on:
         type: string
         default: "1.16.2"
       op_proposer_version:
-        description: only for sovereign type
+        description: op_proposer_version (only for sovereign type)
         type: string
         default: "1.10.0"
       op_succinct_proposer_version:
-        description: only for rollup type
+        description: op_succinct_proposer_version (only for rollup type)
         type: string
         default: "3.4.0-rc.1-agglayer"
       zkevm_bridge_service_version:
@@ -111,7 +111,7 @@ on:
 
       # Test environment configuration
       environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+        description: how long to keep the test environment running (in seconds)
         type: string
         default: "120" # 2min for now
 

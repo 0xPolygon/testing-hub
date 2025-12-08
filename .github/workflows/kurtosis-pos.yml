@@ -19,7 +19,7 @@ on:
 
       # Test environment configuration
       environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+        description: how long to keep the test environment running (in seconds)
         type: string
         default: "120" # 2min for now
 
