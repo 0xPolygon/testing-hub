@@ -9,14 +9,14 @@ on:
         type: choice
         options:
           - rollup # mock prover
-          - sovereign
-          - aggchain-ecdsa-multisig
+          - sovereign-pessimistic # old sovereign environment
+          - sovereign-ecdsa-multisig # new sovereign environment
         default: rollup
 
       # Component versions
       kurtosis_cdk_package_version:
         type: string
-        default: "0.5.10"
+        default: "0.5.11"
       aggkit_version:
         type: string
         default: "0.7.2"
@@ -89,10 +89,10 @@ jobs:
           args_file="${{ github.workspace }}/kurtosis-cdk/.github/tests/"
           if [[ "${{ inputs.stack_type }}" == "rollup" ]]; then
             args_file+="op-succinct/mock-prover.yml"
-          elif [[ "${{ inputs.stack_type }}" == "sovereign" ]]; then
-            args_file+="op-geth/sovereign.yml"
-          elif [[ "${{ inputs.stack_type }}" == "aggchain-ecdsa-multisig" ]]; then
-            args_file+="op-geth/aggchain-ecdsa-multisig.yml"
+          elif [[ "${{ inputs.stack_type }}" == "sovereign-pessimistic" ]]; then
+            args_file+="op-geth/sovereign-pessimistic.yml"
+          elif [[ "${{ inputs.stack_type }}" == "sovereign-ecdsa-multisig" ]]; then
+            args_file+="op-geth/sovereign-ecdsa-multisig.yml"
           else
             echo "Unknown stack type: ${{ inputs.stack_type }}"
             exit 1
@@ -126,7 +126,7 @@ jobs:
             yq --yaml-roundtrip --in-place ".args.op_batcher_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v${{ inputs.op_batcher_version }}\"" ${args_file}
           fi
           if [[ "${{ inputs.op_proposer_version }}" ]]; then
-            if [[ "${{ inputs.stack_type }}" == "sovereign" ]]; then
+            if [[ "${{ inputs.stack_type }}" =~ "sovereign" ]]; then
               yq --yaml-roundtrip --in-place ".args.op_proposer_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v${{ inputs.op_proposer_version }}\"" ${args_file}
             fi
           fi

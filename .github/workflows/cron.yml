@@ -12,8 +12,8 @@ jobs:
       matrix:
         include:
           - stack_type: rollup
-          - stack_type: sovereign
-          - stack_type: aggchain-ecdsa-multisig
+          - stack_type: sovereign-pessimistic # old sovereign environment
+          - stack_type: sovereign-ecdsa-multisig # new sovereign environment
     uses: ./.github/workflows/kurtosis-cdk-op-geth.yml
     with:
       stack_type: ${{ matrix.stack_type }}
