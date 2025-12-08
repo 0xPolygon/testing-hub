@@ -1,6 +1,61 @@
 name: kurtosis-cdk-op-geth
 
 on:
+  workflow_call:
+    inputs:
+      # Stack deployment configuration
+      stack_type:
+        description: Type of op-geth stack to deploy
+        type: string
+        default: rollup # mock-prover
+
+      # Component versions
+      kurtosis_cdk_package_version:
+        type: string
+        default: "0.5.11"
+      aggkit_version:
+        type: string
+        default: "0.7.2"
+      aggkit_prover_version:
+        description: only for rollup type
+        type: string
+        default: "1.8.0"
+      agglayer_version:
+        type: string
+        default: "0.4.4"
+      agglayer_contracts_version:
+        type: string
+        default: "12.1.6-fork.0"
+      op_batcher_version:
+        type: string
+        default: "1.16.2"
+      op_contract_deployer_version:
+        type: string
+        default: "0.4.5-cdk"
+      op_geth_version:
+        type: string
+        default: "1.101603.5"
+      op_node_version:
+        type: string
+        default: "1.16.2"
+      op_proposer_version:
+        description: only for sovereign type
+        type: string
+        default: "1.10.0"
+      op_succinct_proposer_version:
+        description: only for rollup type
+        type: string
+        default: "3.4.0-rc.1-agglayer"
+      zkevm_bridge_service_version:
+        type: string
+        default: "0.6.3-RC7"
+
+      # Test environment configuration
+      environment_duration_seconds:
+        description: How long to keep the test environment running (in seconds)
+        type: string
+        default: "120" # 2min for now
+
   workflow_dispatch:
     inputs:
       # Stack deployment configuration
