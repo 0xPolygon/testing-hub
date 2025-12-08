@@ -5,9 +5,6 @@ on:
     - cron: "0 0 * * *" # Run every day at 00:00 UTC.
   workflow_dispatch:
 
-env:
-  TEST_DURATION_SECONDS: "60" # 1min for now
-
 jobs:
   kurtosis-cdk-op-geth:
     strategy:
@@ -20,7 +17,7 @@ jobs:
     uses: ./.github/workflows/kurtosis-cdk-op-geth.yml
     with:
       stack_type: ${{ matrix.stack_type }}
-      environment_duration_seconds: ${{ env.TEST_DURATION_SECONDS }}
+      environment_duration_seconds: "60" # 1min for now
 
   kurtosis-cdk-erigon:
     strategy:
@@ -34,4 +31,4 @@ jobs:
     uses: ./.github/workflows/kurtosis-cdk-erigon.yml
     with:
       stack_type: ${{ matrix.stack_type }}
-      environment_duration_seconds: ${{ env.TEST_DURATION_SECONDS }}
+      environment_duration_seconds: "60" # 1min for now
