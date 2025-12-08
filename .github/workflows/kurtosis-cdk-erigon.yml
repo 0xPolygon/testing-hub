@@ -106,7 +106,7 @@ on:
       zkevm_prover_version:
         description: only for rollup and validium types
         type: string
-        default: "8.0.0-RC16"
+        default: "8.0.0-RC16-fork.12"
 
       # Test environment configuration
       environment_duration_seconds:
