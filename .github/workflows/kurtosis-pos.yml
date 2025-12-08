@@ -1,0 +1,151 @@
+name: kurtosis-pos
+
+on:
+  workflow_call:
+    inputs:
+      # Component versions
+      kurtosis_pos_package_version:
+        type: string
+        default: "1.2.5"
+      heimdall_v2_version:
+        type: string
+        default: "0.4.5"
+      bor_version:
+        type: string
+        default: "2.5.3"
+      erigon_version:
+        type: string
+        default: "3.3.0"
+
+      # Test environment configuration
+      environment_duration_seconds:
+        description: How long to keep the test environment running (in seconds)
+        type: string
+        default: "120" # 2min for now
+
+  workflow_dispatch:
+    inputs:
+      # Component versions
+      kurtosis_pos_package_version:
+        type: string
+        default: "1.2.5"
+      heimdall_v2_version:
+        type: string
+        default: "0.4.5"
+      bor_version:
+        type: string
+        default: "2.5.3"
+      erigon_version:
+        type: string
+        default: "3.3.0"
+
+      # Test environment configuration
+      environment_duration_seconds:
+        description: How long to keep the test environment running (in seconds)
+        type: string
+        default: "120" # 2min for now
+
+env:
+  SLACK_CHANNEL_ID: C09UY6RJ38U
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare environment
+        uses: ./.github/actions/kurtosis-pre-run
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_token: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Clone 0xPolygon/kurtosis-pos
+        uses: actions/checkout@v6
+        with:
+          repository: 0xPolygon/kurtosis-pos
+          ref: v${{ inputs.kurtosis_pos_package_version }}
+          path: kurtosis-pos
+
+      - name: Customize args file
+        run: |
+          args_file="${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml"
+          echo "Using args file: ${args_file}"
+          echo "ARGS_FILE=${args_file}" >> "${GITHUB_ENV}"
+
+          # Customize component versions
+          if [[ "${{ inputs.heimdall_v2_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[0].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[1].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[2].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[3].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[4].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+          fi
+
+          if [[ "${{ inputs.bor_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[0].el_image = \"0xpolygon/bor:${{ inputs.bor_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[1].el_image = \"0xpolygon/bor:${{ inputs.bor_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[2].el_image = \"0xpolygon/bor:${{ inputs.bor_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[4].el_image = \"0xpolygon/bor:${{ inputs.bor_version }}\"" ${args_file}
+          fi
+
+          if [[ "${{ inputs.erigon_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[4].el_image = \"0xpolygon/erigon:v${{ inputs.erigon_version }}\"" ${args_file}
+          fi
+
+          # Display the customized args file
+          cat ${args_file}
+
+      - name: Deploy enclave
+        working-directory: kurtosis-pos
+        run: |
+          enclave_name="kurtosis-pos-${{ inputs.stack_type }}"
+          echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
+          echo "ENCLAVE_NAME=${enclave_name}"
+          kurtosis run --enclave $enclave_name --args-file ${{ env.ARGS_FILE }} .
+
+      - name: Inspect enclave
+        run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
+
+      - name: Monitor system
+        working-directory: .github/scripts
+        run: ./idle.sh ${{ inputs.environment_duration_seconds }}
+
+      - name: Collect logs and enclave state
+        if: always()
+        uses: ./.github/actions/kurtosis-post-run
+        with:
+          enclave_name: ${{ env.ENCLAVE_NAME }}
+
+      - name: Report to slack
+        if: always()
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          payload: |
+            {
+              "channel": ${{ env.SLACK_CHANNEL_ID }},
+              "text": "Test Summary: kurtosis-pos",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "kurtosis-pos: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}",
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Links:*\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow Run>"
+                  }
+                }
+              ]
+            }

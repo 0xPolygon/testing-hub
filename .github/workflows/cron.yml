@@ -38,3 +38,9 @@ jobs:
     with:
       stack_type: ${{ matrix.stack_type }}
       environment_duration_seconds: "60" # 1min for now
+
+  kurtosis-pos:
+    secrets: inherit
+    uses: ./.github/workflows/kurtosis-pos.yml
+    with:
+      environment_duration_seconds: "60" # 1min for now
