@@ -45,6 +45,7 @@ on:
       op_proposer_version:
         description: only for sovereign type
         type: string
+        default: "1.10.0"
       op_succinct_proposer_version:
         description: only for rollup type
         type: string
@@ -57,7 +58,7 @@ on:
       environment_duration_seconds:
         description: How long to keep the test environment running (in seconds)
         type: string
-        default: "600" # 10min for now
+        default: "120" # 2min for now
 
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
@@ -127,17 +128,11 @@ jobs:
           if [[ "${{ inputs.op_proposer_version }}" ]]; then
             if [[ "${{ inputs.stack_type }}" == "sovereign" ]]; then
               yq --yaml-roundtrip --in-place ".args.op_proposer_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v${{ inputs.op_proposer_version }}\"" ${args_file}
-            else
-              echo "op_proposer_version is only applicable for 'sovereign' type"
-              exit 1
             fi
           fi
           if [[ "${{ inputs.op_succinct_proposer_version }}" ]]; then
             if [[ "${{ inputs.stack_type }}" == "rollup" ]]; then
               yq --yaml-roundtrip --in-place ".args.op_succinct_proposer_image = \"ghcr.io/agglayer/op-succinct/op-succinct-agglayer:v${{ inputs.op_succinct_proposer_version }}\"" ${args_file}
-            else
-              echo "op_succinct_proposer_version is only applicable for 'rollup' type"
-              exit 1
             fi
           fi
           if [[ "${{ inputs.zkevm_bridge_service_version }}" ]]; then
