@@ -104,7 +104,7 @@ jobs:
       - name: Deploy enclave
         working-directory: kurtosis-pos
         run: |
-          enclave_name="kurtosis-pos-${{ inputs.stack_type }}"
+          enclave_name="kurtosis-pos"
           echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
           echo "ENCLAVE_NAME=${enclave_name}"
           kurtosis run --enclave $enclave_name --args-file ${{ env.ARGS_FILE }} .
