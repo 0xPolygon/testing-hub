@@ -5,7 +5,7 @@ on:
     inputs:
       # Stack deployment configuration
       stack_type:
-        description: Type of cdk-erigon stack to deploy
+        description: type of cdk-erigon stack to deploy
         type: string
         default: rollup # mock-prover
 
@@ -14,11 +14,11 @@ on:
         type: string
         default: "0.5.11"
       aggkit_version:
-        description: only for sovereign type
+        description: aggkit_version (only for sovereign type)
         type: string
         default: "0.7.2"
       aggkit_prover_version:
-        description: only for rollup type
+        description: aggkit_prover_version (only for rollup type)
         type: string
         default: "1.8.0"
       agglayer_version:
@@ -31,27 +31,27 @@ on:
         type: string
         default: "2.64.0-RC10"
       cdk_node_version:
-        description: only for rollup and validium types
+        description: cdk_node_version (only for rollup and validium types)
         type: string
         default: "0.5.4"
       zkevm_bridge_service_version:
         type: string
         default: "0.6.3-RC7"
       zkevm_data_availability_version:
-        description: only for validium type
+        description: zkevm_data_availability_version (only for validium type)
         type: string
         default: "0.0.13"
       zkevm_pool_manager_version:
         type: string
         default: "0.1.3"
       zkevm_prover_version:
-        description: only for rollup and validium types
+        description: zkevm_prover_version (only for rollup and validium types)
         type: string
-        default: "8.0.0-RC16"
+        default: "8.0.0-RC16-fork.12"
 
       # Test environment configuration
       environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+        description: how long to keep the test environment running (in seconds)
         type: string
         default: "120" # 2min for now
 
@@ -59,7 +59,7 @@ on:
     inputs:
       # Stack deployment configuration
       stack_type:
-        description: Type of cdk-erigon stack to deploy
+        description: type of cdk-erigon stack to deploy
         type: choice
         options:
           - rollup # mock prover
@@ -73,11 +73,11 @@ on:
         type: string
         default: "0.5.11"
       aggkit_version:
-        description: only for sovereign type
+        description: aggkit_version (only for sovereign type)
         type: string
         default: "0.7.2"
       aggkit_prover_version:
-        description: only for rollup type
+        description: aggkit_prover_version (only for rollup type)
         type: string
         default: "1.8.0"
       agglayer_version:
@@ -90,27 +90,27 @@ on:
         type: string
         default: "2.64.0-RC10"
       cdk_node_version:
-        description: only for rollup and validium types
+        description: cdk_node_version (only for rollup and validium types)
         type: string
         default: "0.5.4"
       zkevm_bridge_service_version:
         type: string
         default: "0.6.3-RC7"
       zkevm_data_availability_version:
-        description: only for validium type
+        description: zkevm_data_availability_version (only for validium type)
         type: string
         default: "0.0.13"
       zkevm_pool_manager_version:
         type: string
         default: "0.1.3"
       zkevm_prover_version:
-        description: only for rollup and validium types
+        description: zkevm_prover_version (only for rollup and validium types)
         type: string
         default: "8.0.0-RC16-fork.12"
 
       # Test environment configuration
       environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+        description: how long to keep the test environment running (in seconds)
         type: string
         default: "120" # 2min for now
 
