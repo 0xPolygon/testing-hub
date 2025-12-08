@@ -115,3 +115,15 @@ runs:
       if: ${{ !env.ACT }}
       shell: bash
       run: gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+    # Pull images from GCR if specified
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.13
+
+    - name: Add registry prefix to image names
+      shell: bash
+      working-directory: .github/scripts
+      run: python3 add-registry-prefix.py \
+        --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
+        --input-file "src/package_io/constants.star"
