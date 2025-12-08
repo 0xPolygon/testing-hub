@@ -101,40 +101,50 @@ jobs:
           echo "ARGS_FILE=${args_file}" >> "${GITHUB_ENV}"
 
           # Customize component versions
-          if [[ "${{ inputs.agglayer_contracts_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.agglayer_contracts_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer-contracts:v${{ inputs.agglayer_contracts_version }}\"" ${args_file}
-          fi
           if [[ "${{ inputs.aggkit_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.aggkit_image = \"ghcr.io/agglayer/aggkit:${{ inputs.aggkit_version }}\"" ${args_file}
           fi
+
           if [[ "${{ inputs.aggkit_prover_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.aggkit_prover_image = \"ghcr.io/agglayer/aggkit-prover:${{ inputs.aggkit_prover_version }}\"" ${args_file}
           fi
+
           if [[ "${{ inputs.agglayer_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.agglayer_image = \"ghcr.io/agglayer/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
           fi
-          if [[ "${{ inputs.op_geth_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.op_geth_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v${{ inputs.op_geth_version }}\"" ${args_file}
+
+          if [[ "${{ inputs.agglayer_contracts_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".args.agglayer_contracts_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer-contracts:v${{ inputs.agglayer_contracts_version }}\"" ${args_file}
           fi
-          if [[ "${{ inputs.op_node_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.op_node_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v${{ inputs.op_node_version }}\"" ${args_file}
-          fi
-          if [[ "${{ inputs.op_contract_deployer_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.op_contract_deployer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/op-deployer:v${{ inputs.op_contract_deployer_version }}\"" ${args_file}
-          fi
+
           if [[ "${{ inputs.op_batcher_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.op_batcher_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-batcher:v${{ inputs.op_batcher_version }}\"" ${args_file}
           fi
+
+          if [[ "${{ inputs.op_contract_deployer_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".args.op_contract_deployer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/op-deployer:v${{ inputs.op_contract_deployer_version }}\"" ${args_file}
+          fi
+          
+          if [[ "${{ inputs.op_geth_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".args.op_geth_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:v${{ inputs.op_geth_version }}\"" ${args_file}
+          fi
+
+          if [[ "${{ inputs.op_node_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".args.op_node_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-node:v${{ inputs.op_node_version }}\"" ${args_file}
+          fi
+
           if [[ "${{ inputs.op_proposer_version }}" ]]; then
             if [[ "${{ inputs.stack_type }}" =~ "sovereign" ]]; then
               yq --yaml-roundtrip --in-place ".args.op_proposer_image = \"us-docker.pkg.dev/oplabs-tools-artifacts/images/op-proposer:v${{ inputs.op_proposer_version }}\"" ${args_file}
             fi
           fi
+
           if [[ "${{ inputs.op_succinct_proposer_version }}" ]]; then
             if [[ "${{ inputs.stack_type }}" == "rollup" ]]; then
               yq --yaml-roundtrip --in-place ".args.op_succinct_proposer_image = \"ghcr.io/agglayer/op-succinct/op-succinct-agglayer:v${{ inputs.op_succinct_proposer_version }}\"" ${args_file}
             fi
           fi
+
           if [[ "${{ inputs.zkevm_bridge_service_version }}" ]]; then
             yq --yaml-roundtrip --in-place ".args.zkevm_bridge_service_image = \"ghcr.io/0xpolygon/zkevm-bridge-service:v${{ inputs.zkevm_bridge_service_version }}\"" ${args_file}
           fi
