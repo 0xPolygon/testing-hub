@@ -17,9 +17,6 @@ on:
       kurtosis_cdk_package_version:
         type: string
         default: "0.5.10"
-      agglayer_contracts_version:
-        type: string
-        default: "12.1.6-fork.0"
       aggkit_version:
         type: string
         default: "0.7.2"
@@ -30,16 +27,19 @@ on:
       agglayer_version:
         type: string
         default: "0.4.4"
-      op_geth_version:
+      agglayer_contracts_version:
         type: string
-        default: "1.101603.5"
-      op_node_version:
+        default: "12.1.6-fork.0"
+      op_batcher_version:
         type: string
         default: "1.16.2"
       op_contract_deployer_version:
         type: string
         default: "0.4.5-cdk"
-      op_batcher_version:
+      op_geth_version:
+        type: string
+        default: "1.101603.5"
+      op_node_version:
         type: string
         default: "1.16.2"
       op_proposer_version:
