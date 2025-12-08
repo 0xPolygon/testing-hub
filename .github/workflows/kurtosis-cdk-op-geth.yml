@@ -118,6 +118,10 @@ on:
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
