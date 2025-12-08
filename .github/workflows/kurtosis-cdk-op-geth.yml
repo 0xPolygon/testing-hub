@@ -121,6 +121,7 @@ env:
 permissions:
   contents: read
   actions: write
+  id-token: write
 
 jobs:
   test:
