@@ -95,7 +95,7 @@ jobs:
           fi
 
           if [[ "${{ inputs.erigon_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[4].el_image = \"0xpolygon/erigon:v${{ inputs.erigon_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[3].el_image = \"0xpolygon/erigon:v${{ inputs.erigon_version }}\"" ${args_file}
           fi
 
           # Display the customized args file
