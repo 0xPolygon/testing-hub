@@ -124,6 +124,7 @@ runs:
     - name: Add registry prefix to image names
       shell: bash
       working-directory: .github/scripts
-      run: python3 add-registry-prefix.py \
-        --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
-        --input-file "src/package_io/constants.star"
+      run: |
+        python3 add-registry-prefix.py \
+          --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
+          --input-file "src/package_io/constants.star"
