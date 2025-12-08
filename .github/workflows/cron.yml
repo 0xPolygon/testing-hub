@@ -5,6 +5,9 @@ on:
     - cron: "0 0 * * *" # Run every day at 00:00 UTC.
   workflow_dispatch:
 
+env:
+  TEST_DURATION_SECONDS: "60" # 1min for now
+
 jobs:
   kurtosis-cdk-op-geth:
     strategy:
@@ -17,4 +20,18 @@ jobs:
     uses: ./.github/workflows/kurtosis-cdk-op-geth.yml
     with:
       stack_type: ${{ matrix.stack_type }}
-      environment_duration_seconds: "60" # 1min for now
+      environment_duration_seconds: ${{ env.TEST_DURATION_SECONDS }}
+
+  kurtosis-cdk-erigon:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack_type: rollup
+          - stack_type: validium
+          - stack_type: sovereign-pessimistic # old sovereign environment
+          - stack_type: sovereign-ecdsa-multisig # new sovereign environment
+    uses: ./.github/workflows/kurtosis-cdk-erigon.yml
+    with:
+      stack_type: ${{ matrix.stack_type }}
+      environment_duration_seconds: ${{ env.TEST_DURATION_SECONDS }}
