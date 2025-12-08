@@ -1,0 +1,20 @@
+name: cron
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run every day at 00:00 UTC.
+  workflow_dispatch:
+
+jobs:
+  kurtosis-cdk-op-geth:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack_type: rollup
+          - stack_type: sovereign
+          - stack_type: aggchain-ecdsa-multisig
+    uses: ./.github/workflows/kurtosis-cdk-op-geth.yml
+    with:
+      stack_type: ${{ matrix.stack_type }}
+      environment_duration_seconds: "60" # 1min for now
