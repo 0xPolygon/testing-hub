@@ -73,6 +73,12 @@ jobs:
           ref: v${{ inputs.kurtosis_pos_package_version }}
           path: kurtosis-pos
 
+      - name: Add registry prefix to image names
+        run: |
+          python3 .github/scripts/add-registry-prefix.py \
+            --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
+            --input-file "src/config/constants.star"
+
       - name: Customize args file
         run: |
           args_file="${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml"

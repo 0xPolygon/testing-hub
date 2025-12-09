@@ -143,6 +143,12 @@ jobs:
           ref: v${{ inputs.kurtosis_cdk_package_version }}
           path: kurtosis-cdk
 
+      - name: Add registry prefix to image names
+        run: |
+          python3 .github/scripts/add-registry-prefix.py \
+            --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
+            --input-file "src/package_io/constants.star"
+
       - name: Customize args file
         run: |
           # Select args file based on stack type
