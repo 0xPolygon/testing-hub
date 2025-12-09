@@ -143,6 +143,7 @@ jobs:
           path: kurtosis-cdk
 
       - name: Add registry prefix to image names
+        working-directory: kurtosis-cdk
         run: |
           python3 .github/scripts/add-registry-prefix.py \
             --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \

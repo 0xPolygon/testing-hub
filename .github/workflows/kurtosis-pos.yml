@@ -74,6 +74,7 @@ jobs:
           path: kurtosis-pos
 
       - name: Add registry prefix to image names
+        working-directory: kurtosis-pos
         run: |
           python3 .github/scripts/add-registry-prefix.py \
             --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
