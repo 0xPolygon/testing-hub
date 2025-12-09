@@ -123,8 +123,17 @@ runs:
 
     - name: Add registry prefix to image names
       shell: bash
-      working-directory: .github/scripts
       run: |
-        python3 add-registry-prefix.py \
+        input_file=""
+        if [[ -f "src/package_io/constants.star" ]]; then
+          input_file="src/package_io/constants.star" # kurtosis-cdk
+        elif [[ -f "src/config/constants.star" ]]; then
+          input_file="src/config/constants.star" # kurtosis-pos
+        else
+          echo "No constants.star file found"
+          exit 1
+        fi
+
+        python3 .github/scripts/add-registry-prefix.py \
           --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
-          --input-file "src/package_io/constants.star"
+          --input-file "$input_file"
