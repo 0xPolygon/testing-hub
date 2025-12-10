@@ -2,12 +2,27 @@ name: kurtosis-pre-run
 description: Prepare the environment for deploying kurtosis packages
 
 inputs:
+  # package type - used for pulling relevant images
+  kurtosis_package_type:
+    description: The type of kurtosis package to deploy
+    type: choice
+    options:
+      - kurtosis-cdk
+      - kurtosis-pos
+    default: kurtosis-cdk
+
+  # docker registry credentials
   docker_username:
     description: The username for Docker Hub
     required: true
   docker_token:
     description: The token for Docker Hub
     required: true
+
+  # google cloud registry
+  gcr_registry:
+    description: The google cloud registry to pull images from
+    default: europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual
 
   # tool versions
   kurtosis_version:
@@ -71,7 +86,7 @@ runs:
       with:
         version: v${{ inputs.foundry_version }}
         cache: false
-    
+
     - name: Install bats
       uses: bats-core/bats-action@42fcc8700f773c075a16a90eb11674c0318ad507 # 3.0.1
       with:
@@ -104,14 +119,65 @@ runs:
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
-    - name: Log in to GCR
+    - name: Login to google cloud registry
       if: ${{ !env.ACT }}
       uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
       with:
         workload_identity_provider: projects/337907489413/locations/global/workloadIdentityPools/github-wif/providers/github
         service_account: testing-hub-ci@prj-polygonlabs-devtools-dev.iam.gserviceaccount.com
 
-    - name: Configure Docker to use GCR
+    - name: Configure docker to use google cloud registry
       if: ${{ !env.ACT }}
       shell: bash
       run: gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+    # Pull kurtosis package repository and pre-pull images
+    - name: Clone 0xPolygon/{{ inputs.kurtosis_package_type }} repository
+      uses: actions/checkout@v6
+      with:
+        repository: 0xPolygon/{{ inputs.kurtosis_package_type }}
+        ref: v${{ inputs.kurtosis_pos_package_version }}
+        path: {{ inputs.kurtosis_package_type }}
+
+    - name: Add registry prefix to image names
+      shell: bash
+      working-directory: {{ inputs.kurtosis_package_type }}
+      run: |
+        input_file=""
+        if [[ "${{ inputs.kurtosis_package_type }}" == "kurtosis-cdk" ]]; then
+          input_file="src/package_io/constants.star"
+        else
+          input_file="src/config/constants.star"
+        fi
+        echo "Using input file: ${input_file}"
+        python3 .github/scripts/add-registry-prefix.py \
+          --registry-prefix "${{ inputs.gcr_registry }}" \
+          --input-file "${input_file}"
+
+    - name: Pre pull package images
+      shell: bash
+      working-directory: {{ inputs.kurtosis_package_type }}
+      run: cat modified-images.txt | xargs -n 1 -P 8 docker pull
+
+    - name: Pre pull kurtosis core images
+      shell: bash
+      run: |
+        images=(
+          "kurtosistech/engine:${{ inputs.kurtosis_version }}"
+          "kurtosistech/core:${{ inputs.kurtosis_version }}"
+          "kurtosistech/files-artifacts-expander:${{ inputs.kurtosis_version }}"
+          "timberio/vector:0.45.0-debian"
+          "traefik:2.10.6"
+          "alpine:3.17"
+          "badouralix/curl-jq:latest"
+          "protolambda/eth2-val-tools:latest"
+          "ethpandaops/ethereum-genesis-generator:5.0.6"
+          "mslipper/deployment-utils:latest"
+        )
+        for image in "${images[@]}"; do
+          {
+            docker pull "${{ inputs.gcr_registry }}/${image}"
+            docker tag "${{ inputs.gcr_registry }}/${image}" "${image}"
+          } &
+        done
+        wait

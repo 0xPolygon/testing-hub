@@ -65,20 +65,7 @@ jobs:
         with:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_token: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Clone 0xPolygon/kurtosis-pos
-        uses: actions/checkout@v6
-        with:
-          repository: 0xPolygon/kurtosis-pos
-          ref: v${{ inputs.kurtosis_pos_package_version }}
-          path: kurtosis-pos
-
-      - name: Add registry prefix to image names
-        working-directory: kurtosis-pos
-        run: |
-          python3 .github/scripts/add-registry-prefix.py \
-            --registry-prefix "europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/virtual" \
-            --input-file "src/config/constants.star"
+          kurtosis_package_type: kurtosis-pos
 
       - name: Customize args file
         run: |
