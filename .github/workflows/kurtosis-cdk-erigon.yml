@@ -221,22 +221,25 @@ jobs:
         with:
           enclave_name: ${{ env.ENCLAVE_NAME }}
 
-      - name: Report to slack
-        if: always()
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+  slack:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: test
+    steps:
+      - uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           method: chat.postMessage
           payload: |
             {
               "channel": ${{ env.SLACK_CHANNEL_ID }},
-              "text": "Test Summary: kurtosis-cdk-erigon",
+              "text": "Testing Hub Nightly - Test Summary",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "**Testing Hub**: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: cdk-erigon ${{ inputs.stack_type }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs (go to `collect logs and enclave state` and click on the artifact link to download the kurtosis enclave dump)>"
+                    "text": "Testing Hub Nightly: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: cdk-erigon ${{ inputs.stack_type }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
                   }
                 }
               ]
