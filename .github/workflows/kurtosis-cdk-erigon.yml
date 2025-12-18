@@ -190,11 +190,11 @@ jobs:
           fi
 
           if [[ "${{ inputs.zkevm_pool_manager_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.zkevm_bridge_service_image = \"ghcr.io/0xpolygon/zkevm-pool-manager:${{ inputs.zkevm_pool_manager_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".args.zkevm_pool_manager_image = \"ghcr.io/0xpolygon/zkevm-pool-manager:${{ inputs.zkevm_pool_manager_version }}\"" ${args_file}
           fi
 
           if [[ "${{ inputs.zkevm_prover_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.zkevm_bridge_service_image = \"hermeznetwork/zkevm-prover:v${{ inputs.zkevm_prover_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".args.zkevm_prover_image = \"hermeznetwork/zkevm-prover:v${{ inputs.zkevm_prover_version }}\"" ${args_file}
           fi
 
           # Display the customized args file
