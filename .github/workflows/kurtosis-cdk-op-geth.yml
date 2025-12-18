@@ -12,32 +12,32 @@ on:
       # Component versions
       kurtosis_cdk_package_version:
         type: string
-        default: "0.5.11"
+        default: "0.5.14"
       aggkit_version:
         type: string
-        default: "0.7.2"
+        default: "0.8.0-beta3"
       aggkit_prover_version:
         description: aggkit_prover_version (only for rollup type)
         type: string
-        default: "1.8.0"
+        default: "1.9.0"
       agglayer_version:
         type: string
-        default: "0.4.4"
+        default: "0.4.4-remove-agglayer-prover"
       agglayer_contracts_version:
         type: string
-        default: "12.1.6-fork.0"
+        default: "12.2.0"
       op_batcher_version:
         type: string
         default: "1.16.2"
       op_contract_deployer_version:
         type: string
-        default: "0.4.5-cdk"
+        default: "0.5.1"
       op_geth_version:
         type: string
         default: "1.101603.5"
       op_node_version:
         type: string
-        default: "1.16.2"
+        default: "1.16.3"
       op_proposer_version:
         description: op_proposer_version (only for sovereign type)
         type: string
@@ -48,7 +48,7 @@ on:
         default: "3.4.0-rc.1-agglayer"
       zkevm_bridge_service_version:
         type: string
-        default: "0.6.3-RC7"
+        default: "0.6.3"
 
       # Test environment configuration
       test_duration_minutes:
@@ -71,32 +71,32 @@ on:
       # Component versions
       kurtosis_cdk_package_version:
         type: string
-        default: "0.5.11"
+        default: "0.5.14"
       aggkit_version:
         type: string
-        default: "0.7.2"
+        default: "0.8.0-beta3"
       aggkit_prover_version:
         description: aggkit_prover_version (only for rollup type)
         type: string
-        default: "1.8.0"
+        default: "1.9.0"
       agglayer_version:
         type: string
-        default: "0.4.4"
+        default: "0.4.4-remove-agglayer-prover"
       agglayer_contracts_version:
         type: string
-        default: "12.1.6-fork.0"
+        default: "12.2.0"
       op_batcher_version:
         type: string
         default: "1.16.2"
       op_contract_deployer_version:
         type: string
-        default: "0.4.5-cdk"
+        default: "0.5.1"
       op_geth_version:
         type: string
         default: "1.101603.5"
       op_node_version:
         type: string
-        default: "1.16.2"
+        default: "1.16.3"
       op_proposer_version:
         description: op_proposer_version (only for sovereign type)
         type: string
@@ -107,7 +107,7 @@ on:
         default: "3.4.0-rc.1-agglayer"
       zkevm_bridge_service_version:
         type: string
-        default: "0.6.3-RC7"
+        default: "0.6.3"
 
       # Test environment configuration
       test_duration_minutes:
@@ -165,7 +165,7 @@ jobs:
           fi
 
           if [[ "${{ inputs.agglayer_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.agglayer_image = \"ghcr.io/agglayer/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".args.agglayer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
           fi
 
           if [[ "${{ inputs.agglayer_contracts_version }}" ]]; then

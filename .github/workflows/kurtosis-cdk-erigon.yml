@@ -12,31 +12,31 @@ on:
       # Component versions
       kurtosis_cdk_package_version:
         type: string
-        default: "0.5.11"
+        default: "0.5.14"
       aggkit_version:
         description: aggkit_version (only for sovereign type)
         type: string
-        default: "0.7.2"
+        default: "0.8.0-beta3"
       aggkit_prover_version:
         description: aggkit_prover_version (only for rollup type)
         type: string
-        default: "1.8.0"
+        default: "1.9.0"
       agglayer_version:
         type: string
-        default: "0.4.4"
+        default: "0.4.4-remove-agglayer-prover"
       agglayer_contracts_version:
         type: string
-        default: "12.1.6-fork.0"
+        default: "12.2.0"
       cdk_erigon_version:
         type: string
-        default: "2.64.0-RC10"
+        default: "2.65.0-RC1"
       cdk_node_version:
         description: cdk_node_version (only for rollup and validium types)
         type: string
         default: "0.5.4"
       zkevm_bridge_service_version:
         type: string
-        default: "0.6.3-RC7"
+        default: "0.6.3"
       zkevm_data_availability_version:
         description: zkevm_data_availability_version (only for validium type)
         type: string
@@ -71,31 +71,31 @@ on:
       # Component versions
       kurtosis_cdk_package_version:
         type: string
-        default: "0.5.11"
+        default: "0.5.14"
       aggkit_version:
         description: aggkit_version (only for sovereign type)
         type: string
-        default: "0.7.2"
+        default: "0.8.0-beta3"
       aggkit_prover_version:
         description: aggkit_prover_version (only for rollup type)
         type: string
-        default: "1.8.0"
+        default: "1.9.0"
       agglayer_version:
         type: string
-        default: "0.4.4"
+        default: "0.4.4-remove-agglayer-prover"
       agglayer_contracts_version:
         type: string
-        default: "12.1.6-fork.0"
+        default: "12.2.0"
       cdk_erigon_version:
         type: string
-        default: "2.64.0-RC10"
+        default: "2.65.0-RC1"
       cdk_node_version:
         description: cdk_node_version (only for rollup and validium types)
         type: string
         default: "0.5.4"
       zkevm_bridge_service_version:
         type: string
-        default: "0.6.3-RC7"
+        default: "0.6.3"
       zkevm_data_availability_version:
         description: zkevm_data_availability_version (only for validium type)
         type: string
@@ -166,7 +166,7 @@ jobs:
           fi
 
           if [[ "${{ inputs.agglayer_version }}" ]]; then
-            yq --yaml-roundtrip --in-place ".args.agglayer_image = \"ghcr.io/agglayer/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
+            yq --yaml-roundtrip --in-place ".args.agglayer_image = \"europe-west2-docker.pkg.dev/prj-polygonlabs-devtools-dev/public/agglayer:${{ inputs.agglayer_version }}\"" ${args_file}
           fi
 
           if [[ "${{ inputs.agglayer_contracts_version }}" ]]; then
