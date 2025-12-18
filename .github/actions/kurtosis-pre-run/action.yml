@@ -149,9 +149,13 @@ runs:
         input_file=""
         if [[ "${{ inputs.kurtosis_package_type }}" == "kurtosis-cdk" ]]; then
           input_file="src/package_io/constants.star"
-        else
+        elif [[ "${{ inputs.kurtosis_package_type }}" == "kurtosis-pos" ]]; then
           input_file="src/config/constants.star"
+        else
+          echo "Unknown kurtosis package type: ${{ inputs.kurtosis_package_type }}"
+          exit 1
         fi
+
         echo "Using input file: ${input_file}"
         python3 .github/scripts/add-registry-prefix.py \
           --registry-prefix "${{ inputs.gcr_registry }}" \
@@ -184,3 +188,7 @@ runs:
           } &
         done
         wait
+
+    - name: Display docker images
+      shell: bash
+      run: docker images
