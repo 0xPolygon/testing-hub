@@ -136,6 +136,7 @@ jobs:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_token: ${{ secrets.DOCKER_TOKEN }}
           kurtosis_package_type: kurtosis-cdk
+          kurtosis_package_version: ${{ inputs.kurtosis_cdk_package_version }}
 
       - name: Customize args file
         run: |

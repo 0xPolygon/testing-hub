@@ -10,6 +10,9 @@ inputs:
       - kurtosis-cdk
       - kurtosis-pos
     default: kurtosis-cdk
+  kurtosis_package_version:
+    description: The version of the kurtosis package to deploy
+    required: true
 
   # docker registry credentials
   docker_username:
@@ -136,7 +139,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: 0xPolygon/${{ inputs.kurtosis_package_type }}
-        ref: v${{ inputs.kurtosis_pos_package_version }}
+        ref: v${{ inputs.kurtosis_package_version }}
         path: ${{ inputs.kurtosis_package_type }}
 
     - name: Add registry prefix to image names
