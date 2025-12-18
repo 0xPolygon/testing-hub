@@ -10,6 +10,9 @@ permissions:
   actions: write
   id-token: write
 
+env:
+  TEST_DURATION_MINUTES: 10
+
 jobs:
   kurtosis-cdk-op-geth:
     strategy:
@@ -23,7 +26,7 @@ jobs:
     uses: ./.github/workflows/kurtosis-cdk-op-geth.yml
     with:
       stack_type: ${{ matrix.stack_type }}
-      environment_duration_seconds: "60" # 1min for now
+      test_duration_minutes: ${{ env.TEST_DURATION_MINUTES }}
 
   kurtosis-cdk-erigon:
     strategy:
@@ -38,10 +41,10 @@ jobs:
     uses: ./.github/workflows/kurtosis-cdk-erigon.yml
     with:
       stack_type: ${{ matrix.stack_type }}
-      environment_duration_seconds: "60" # 1min for now
+      test_duration_minutes: ${{ env.TEST_DURATION_MINUTES }}
 
   kurtosis-pos:
     secrets: inherit
     uses: ./.github/workflows/kurtosis-pos.yml
     with:
-      environment_duration_seconds: "60" # 1min for now
+      test_duration_minutes: ${{ env.TEST_DURATION_MINUTES }}

@@ -18,10 +18,10 @@ on:
         default: "3.3.0"
 
       # Test environment configuration
-      environment_duration_seconds:
-        description: how long to keep the test environment running (in seconds)
+      test_duration_minutes:
+        description: how long to keep the test environment running (in minutes)
         type: string
-        default: "120" # 2min for now
+        default: 60
 
   workflow_dispatch:
     inputs:
@@ -40,10 +40,10 @@ on:
         default: "3.3.0"
 
       # Test environment configuration
-      environment_duration_seconds:
-        description: How long to keep the test environment running (in seconds)
+      test_duration_minutes:
+        description: How long to keep the test environment running (in minutes)
         type: string
-        default: "120" # 2min for now
+        default: 60
 
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
@@ -110,7 +110,7 @@ jobs:
 
       - name: Monitor system
         working-directory: .github/scripts
-        run: ./idle.sh ${{ inputs.environment_duration_seconds }}
+        run: ./idle.sh ${{ inputs.test_duration_minutes }}
 
       - name: Collect logs and enclave state
         if: always()

@@ -50,10 +50,10 @@ on:
         default: "8.0.0-RC16-fork.12"
 
       # Test environment configuration
-      environment_duration_seconds:
-        description: how long to keep the test environment running (in seconds)
+      test_duration_minutes:
+        description: how long to keep the test environment running (in minutes)
         type: string
-        default: "120" # 2min for now
+        default: 60
 
   workflow_dispatch:
     inputs:
@@ -109,10 +109,10 @@ on:
         default: "8.0.0-RC16-fork.12"
 
       # Test environment configuration
-      environment_duration_seconds:
-        description: how long to keep the test environment running (in seconds)
+      test_duration_minutes:
+        description: how long to keep the test environment running (in minutes)
         type: string
-        default: "120" # 2min for now
+        default: 60
 
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
@@ -213,7 +213,7 @@ jobs:
 
       - name: Monitor system
         working-directory: .github/scripts
-        run: ./idle.sh ${{ inputs.environment_duration_seconds }}
+        run: ./idle.sh ${{ inputs.test_duration_minutes }}
 
       - name: Collect logs and enclave state
         if: always()
@@ -236,7 +236,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "kurtosis-cdk-erigon: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}",
+                    "text": "kurtosis-cdk-erigon: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }} (duration: ${{ github.run_duration }})",
                   }
                 },
                 {

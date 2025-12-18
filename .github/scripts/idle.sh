@@ -8,8 +8,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/log.sh"
 
-duration_seconds=${1:-"3600"}
-log_info "Starting idle script"
+duration_minutes=${1:-"60"}
+duration_seconds=$((duration_minutes * 60))
+log_info "Starting idle script for ${duration_minutes} minutes"
 
 check_interval=$((duration_seconds / 100))
 if [[ "${check_interval}" -lt 10 ]]; then
