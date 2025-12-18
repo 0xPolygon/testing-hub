@@ -243,7 +243,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "**Testing Hub**: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: cdk-op-geth ${{ inputs.stack_type }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
+                    "text": "**Testing Hub**: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: cdk-op-geth ${{ inputs.stack_type }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs (go to `collect logs and enclave state` and click on the artifact link to download the kurtosis enclave dump)>"
                   }
                 }
               ]
