@@ -135,13 +135,13 @@ runs:
     - name: Clone 0xPolygon/{{ inputs.kurtosis_package_type }} repository
       uses: actions/checkout@v6
       with:
-        repository: 0xPolygon/{{ inputs.kurtosis_package_type }}
+        repository: 0xPolygon/${{ inputs.kurtosis_package_type }}
         ref: v${{ inputs.kurtosis_pos_package_version }}
-        path: {{ inputs.kurtosis_package_type }}
+        path: ${{ inputs.kurtosis_package_type }}
 
     - name: Add registry prefix to image names
       shell: bash
-      working-directory: {{ inputs.kurtosis_package_type }}
+      working-directory: ${{ inputs.kurtosis_package_type }}
       run: |
         input_file=""
         if [[ "${{ inputs.kurtosis_package_type }}" == "kurtosis-cdk" ]]; then
@@ -156,7 +156,7 @@ runs:
 
     - name: Pre pull package images
       shell: bash
-      working-directory: {{ inputs.kurtosis_package_type }}
+      working-directory: ${{ inputs.kurtosis_package_type }}
       run: cat modified-images.txt | xargs -n 1 -P 8 docker pull
 
     - name: Pre pull kurtosis core images
