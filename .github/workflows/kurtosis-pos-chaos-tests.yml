@@ -159,8 +159,8 @@ jobs:
       - name: Setup chaos-utils
         uses: ./.github/actions/setup-chaos-utils
         with:
-          chaos_utils_version: "refactor/chaos-utils"
-          go_version: "1.23"
+          chaos_utils_version: "main"
+          go_version: "1.24"
 
       - name: Determine scenarios to run
         id: scenarios
