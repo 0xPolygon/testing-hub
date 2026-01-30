@@ -1,0 +1,75 @@
+name: setup-chaos-utils
+description: Install and configure chaos-utils for testing
+
+inputs:
+  chaos_utils_version:
+    description: Version/branch/tag of chaos-utils to use
+    default: "refactor/chaos-utils"
+  go_version:
+    description: Version of Go to install
+    default: "1.23"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: false
+
+    - name: Clone chaos-utils repository
+      shell: bash
+      run: |
+        echo "📦 Cloning chaos-utils..."
+        git clone https://github.com/jihwankim/chaos-utils.git /tmp/chaos-utils
+        cd /tmp/chaos-utils
+        git checkout ${{ inputs.chaos_utils_version }}
+        echo "✅ Cloned chaos-utils version: $(git rev-parse --short HEAD)"
+
+    - name: Build chaos-utils Docker image
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "🐳 Building chaos-utils Docker image..."
+        make build-image
+        docker images | grep chaos-utils
+        echo "✅ Docker image built successfully"
+
+    - name: Build chaos-runner binary
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "🔨 Building chaos-runner binary..."
+        make build-runner
+        ls -lh bin/chaos-runner
+        echo "✅ Binary built successfully"
+
+    - name: Install chaos-runner
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "📥 Installing chaos-runner to /usr/local/bin..."
+        sudo cp bin/chaos-runner /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chaos-runner
+        chaos-runner --version || chaos-runner --help
+        echo "✅ chaos-runner installed"
+
+    - name: Copy chaos scenarios
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "📋 Copying chaos scenarios..."
+        mkdir -p ${{ github.workspace }}/chaos-scenarios
+        cp -r scenarios/polygon-chain/* ${{ github.workspace }}/chaos-scenarios/
+        ls -la ${{ github.workspace }}/chaos-scenarios/
+        echo "✅ Scenarios copied to workspace"
+
+    - name: Verify installation
+      shell: bash
+      run: |
+        echo "🔍 Verifying chaos-utils installation..."
+        echo "chaos-runner: $(which chaos-runner)"
+        echo "Docker images:"
+        docker images | grep chaos
+        echo "✅ Installation verified"

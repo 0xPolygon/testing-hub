@@ -1,0 +1,243 @@
+# Chaos Engineering Tests for Polygon PoS
+#
+# This workflow runs chaos engineering scenarios against a Kurtosis PoS enclave
+# to validate network resilience under various failure conditions.
+#
+# Scenario Categories (23 total):
+#   Quick Tests: quick-test, rolling-validator-restart
+#   Container Lifecycle: simultaneous-validator-restart
+#   Resource Stress: cpu-starved-validator, memory-pressure-validator
+#   Network Partitions: validator-partition, asymmetric-network-partition, split-brain-partition
+#   Network Degradation: bandwidth-throttle, progressive-network-degradation, cascading-latency-spike
+#   Dependency Failures: rabbitmq-failure, latency-spike-l1-rpc, rpc-node-degradation
+#   Others: checkpoint-delay-cascade, intermittent-checkpoint-failures
+#
+# Usage:
+#   Quick test: gh workflow run kurtosis-pos-chaos-tests.yml
+#   Specific:   gh workflow run kurtosis-pos-chaos-tests.yml -f chaos_scenarios="clock-skew-validator"
+#   All tests:  gh workflow run kurtosis-pos-chaos-tests.yml -f chaos_scenarios="all"
+#   Scheduled:  Runs nightly at 2 AM UTC with default (rolling-validator-restart)
+#
+# Artifacts:
+#   - chaos-test-reports-{run_id}: JSON reports for each scenario
+#   - kurtosis-pos-dump-{run_id}: Full enclave logs and state
+#
+name: kurtosis-pos-chaos
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Component versions
+      kurtosis_pos_package_version:
+        type: string
+        default: "1.2.6"
+      heimdall_v2_version:
+        type: string
+        default: "0.5.3"
+      bor_version:
+        type: string
+        default: "2.5.5"
+      erigon_version:
+        type: string
+        default: "3.3.0"
+
+      # Chaos testing configuration
+      chaos_scenarios:
+        description: Select chaos scenarios to run (see available options below)
+        type: choice
+        options:
+          # === Quick Tests (recommended for smoke testing) ===
+          - "quick-test"                          # ~2min - Minimal validation
+          - "rolling-validator-restart"           # ~5min - Sequential restart (DEFAULT)
+
+          # === Container Lifecycle Tests ===
+          - "simultaneous-validator-restart"      # ~4min - All validators restart at once
+          - "test-single-restart"                 # ~2min - Single validator restart
+
+          # === Resource Stress Tests ===
+          - "cpu-starved-validator"               # ~5min - Limit CPU to 50%
+          - "memory-pressure-validator"           # ~5min - Constrain memory to 512MB
+
+          # === Network Partition Tests ===
+          - "validator-partition"                 # ~5min - Isolate validator from network
+          - "asymmetric-network-partition"        # ~6min - Asymmetric network split
+          - "split-brain-partition"               # ~6min - Split brain scenario
+          - "regional-network-outage"             # ~5min - Regional outage simulation
+
+          # === Network Degradation Tests ===
+          - "bandwidth-throttle"                  # ~5min - Limit bandwidth
+          - "progressive-network-degradation"     # ~8min - Progressive network quality loss
+          - "cascading-latency-spike"             # ~6min - Latency increases cascade
+
+          # === Dependency Failures ===
+          - "rabbitmq-failure"                    # ~4min - RabbitMQ service failure
+          - "latency-spike-l1-rpc"                # ~4min - L1 RPC latency spike
+          - "mixed-dependency-failure"            # ~6min - Multiple dependencies fail
+          - "total-dependency-isolation"          # ~6min - Complete dependency isolation
+          - "rpc-node-degradation"                # ~5min - RPC node performance degradation
+
+          # === Other Scenarios ===
+          - "checkpoint-delay-cascade"            # ~6min - Checkpoint delays cascade
+          - "intermittent-checkpoint-failures"    # ~6min - Random checkpoint failures
+          - "monitoring-stress-test"              # ~8min - Monitor system under stress
+
+          # === Combined Test Suites ===
+          - "rolling-validator-restart,simultaneous-validator-restart"  # ~9min - Both restart tests
+          - "cpu-starved-validator,memory-pressure-validator"           # ~10min - Resource tests
+          - "validator-partition,split-brain-partition"                 # ~11min - Partition tests
+
+          # === Full Test Suite ===
+          - "all"                                 # ~2h - All chaos tests (23 scenarios)
+
+        # Conservative default: single safe test
+        default: "rolling-validator-restart"
+
+  schedule:
+    # Run chaos tests nightly at 2 AM UTC
+    # Default: rolling-validator-restart (single conservative test)
+    # To run more tests, modify the workflow or trigger manually
+    - cron: '0 2 * * *'
+
+env:
+  SLACK_CHANNEL_ID: C09UY6RJ38U
+
+permissions:
+  contents: read
+  actions: write
+  id-token: write
+
+jobs:
+  chaos-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare environment
+        uses: ./.github/actions/kurtosis-pre-run
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_token: ${{ secrets.DOCKER_TOKEN }}
+          kurtosis_package_type: kurtosis-pos
+          kurtosis_package_version: ${{ inputs.kurtosis_pos_package_version }}
+
+      - name: Customize args file
+        run: |
+          args_file="${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml"
+          echo "Using args file: ${args_file}"
+          echo "ARGS_FILE=${args_file}" >> "${GITHUB_ENV}"
+
+          # Customize component versions
+          if [[ "${{ inputs.heimdall_v2_version }}" ]]; then
+            for i in 0 1 2 3 4; do
+              yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[$i].cl_image = \"0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}\"" ${args_file}
+            done
+          fi
+
+          if [[ "${{ inputs.bor_version }}" ]]; then
+            for i in 0 1 2 4; do
+              yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[$i].el_image = \"0xpolygon/bor:${{ inputs.bor_version }}\"" ${args_file}
+            done
+          fi
+
+          if [[ "${{ inputs.erigon_version }}" ]]; then
+            yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[3].el_image = \"0xpolygon/erigon:v${{ inputs.erigon_version }}\"" ${args_file}
+          fi
+
+          cat ${args_file}
+
+      - name: Deploy enclave
+        working-directory: kurtosis-pos
+        run: |
+          enclave_name="chaos-test-pos"
+          echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
+          kurtosis run --enclave $enclave_name --args-file ${{ env.ARGS_FILE }} .
+
+      - name: Inspect enclave
+        run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
+
+      - name: Setup chaos-utils
+        uses: ./.github/actions/setup-chaos-utils
+        with:
+          chaos_utils_version: "refactor/chaos-utils"
+          go_version: "1.23"
+
+      - name: Determine scenarios to run
+        id: scenarios
+        run: |
+          input="${{ inputs.chaos_scenarios }}"
+
+          # Handle "all" option - include all available scenarios
+          if [[ "$input" == "all" ]]; then
+            scenarios="quick-test,rolling-validator-restart,simultaneous-validator-restart,test-single-restart,cpu-starved-validator,memory-pressure-validator,validator-partition,asymmetric-network-partition,split-brain-partition,regional-network-outage,bandwidth-throttle,progressive-network-degradation,cascading-latency-spike,rabbitmq-failure,latency-spike-l1-rpc,mixed-dependency-failure,total-dependency-isolation,rpc-node-degradation,checkpoint-delay-cascade,intermittent-checkpoint-failures,monitoring-stress-test"
+          else
+            scenarios="$input"
+          fi
+
+          echo "scenarios=${scenarios}" >> "${GITHUB_OUTPUT}"
+          echo "Running scenarios: ${scenarios}"
+
+      - name: Run chaos engineering tests
+        working-directory: .github/scripts
+        run: |
+          # Parse comma-separated scenarios
+          IFS=',' read -ra SCENARIOS <<< "${{ steps.scenarios.outputs.scenarios }}"
+
+          # Build scenario paths
+          SCENARIO_PATHS=()
+          for scenario in "${SCENARIOS[@]}"; do
+            scenario=$(echo "$scenario" | xargs)
+            scenario_path="${{ github.workspace }}/chaos-scenarios/${scenario}.yaml"
+            if [[ -f "${scenario_path}" ]]; then
+              SCENARIO_PATHS+=("${scenario_path}")
+              echo "✅ Found scenario: ${scenario}"
+            else
+              echo "⚠️  Scenario not found: ${scenario_path}"
+            fi
+          done
+
+          # Run chaos tests
+          if [[ ${#SCENARIO_PATHS[@]} -gt 0 ]]; then
+            ./run-chaos-tests.sh "${{ env.ENCLAVE_NAME }}" "${SCENARIO_PATHS[@]}"
+          else
+            echo "❌ No valid scenario files found"
+            exit 1
+          fi
+
+      - name: Upload chaos test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-test-reports-${{ github.run_id }}
+          path: chaos-reports/
+          if-no-files-found: warn
+
+      - name: Collect logs and enclave state
+        if: always()
+        uses: ./.github/actions/kurtosis-post-run
+        with:
+          enclave_name: ${{ env.ENCLAVE_NAME }}
+
+  slack:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: chaos-test
+    steps:
+      - uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          method: chat.postMessage
+          payload: |
+            {
+              "channel": "${{ env.SLACK_CHANNEL_ID }}",
+              "text": "Chaos Testing - Test Summary",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Chaos Engineering Tests: ${{ needs.chaos-test.result == 'success' && 'all tests passed ✅' || needs.chaos-test.result == 'failure' && 'tests failed ❌' || 'tests were skipped ⚠️' }}\n- environment: kurtosis-pos\n- scenarios: ${{ inputs.chaos_scenarios }}\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
+                  }
+                }
+              ]
+            }
