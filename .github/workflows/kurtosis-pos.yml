@@ -94,6 +94,9 @@ jobs:
             yq --yaml-roundtrip --in-place ".polygon_pos_package.participants[3].el_image = \"0xpolygon/erigon:v${{ inputs.erigon_version }}\"" ${args_file}
           fi
 
+          # Start spammer services
+          yq --yaml-roundtrip --in-place '.polygon_pos_package.additional_services += ["tx_spammer", "bridge_spammer"]' ${args_file}
+
           # Display the customized args file
           cat ${args_file}
 
