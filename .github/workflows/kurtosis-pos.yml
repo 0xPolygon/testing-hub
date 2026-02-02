@@ -68,6 +68,63 @@ jobs:
           kurtosis_package_type: kurtosis-pos
           kurtosis_package_version: ${{ inputs.kurtosis_pos_package_version }}
 
+      - name: Check and build heimdall-v2 image if needed
+        run: |
+          IMAGE="0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}"
+          echo "Checking if image exists: ${IMAGE}"
+
+          if ! docker manifest inspect ${IMAGE} > /dev/null 2>&1; then
+            echo "Image ${IMAGE} not found, building locally..."
+
+            # Clone the repository
+            git clone \
+              --branch v${{ inputs.heimdall_v2_version }} \
+              --depth 1 \
+              https://github.com/0xPolygon/heimdall-v2.git /tmp/heimdall-v2
+
+            # Build the image
+            pushd /tmp/heimdall-v2
+            docker build -t "0xpolygon/heimdall-v2:${{ inputs.heimdall_v2_version }}" -f Dockerfile .
+          fi
+
+      - name: Check and build bor image if needed
+        run: |
+          IMAGE="0xpolygon/bor:${{ inputs.bor_version }}"
+          echo "Checking if image exists: ${IMAGE}"
+
+          if ! docker manifest inspect ${IMAGE} > /dev/null 2>&1; then
+            echo "Image ${IMAGE} not found, building locally..."
+
+            # Clone the repository
+            git clone \
+              --branch v${{ inputs.bor_version }} \
+              --depth 1 \
+              https://github.com/0xPolygon/bor.git /tmp/bor
+
+            # Build the image
+            cd /tmp/bor
+            docker build -t "0xpolygon/bor:${{ inputs.bor_version }}" -f Dockerfile .
+          fi
+
+      - name: Check and build erigon image if needed
+        run: |
+          IMAGE="0xpolygon/erigon:v${{ inputs.erigon_version }}"
+          echo "Checking if image exists: ${IMAGE}"
+
+          if ! docker manifest inspect ${IMAGE} > /dev/null 2>&1; then
+            echo "Image ${IMAGE} not found, building locally..."
+
+            # Clone the repository
+            git clone \
+              --branch v${{ inputs.erigon_version }} \
+              --depth 1 \
+              https://github.com/0xPolygon/erigon.git /tmp/erigon
+
+            # Build the image
+            cd /tmp/erigon
+            docker build -t "0xpolygon/erigon:v${{ inputs.erigon_version }}" -f Dockerfile .
+          fi
+
       - name: Customize args file
         run: |
           args_file="${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml"
