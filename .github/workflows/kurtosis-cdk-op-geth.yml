@@ -205,7 +205,7 @@ jobs:
           fi
 
           # Start spammer services
-          yq --yaml-roundtrip --in-place '.polygon_pos_package.additional_services += ["tx_spammer", "bridge_spammer"]' ${args_file}
+          yq --yaml-roundtrip --in-place '.polygon_pos_package.additional_services += ["tx_spammer", "bridge_spammer", "status_checker"]' ${args_file}
 
           # Display the customized args file
           cat ${args_file}
