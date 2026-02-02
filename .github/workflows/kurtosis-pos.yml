@@ -6,13 +6,13 @@ on:
       # Component versions
       kurtosis_pos_package_version:
         type: string
-        default: "1.2.6"
+        default: "1.2.8"
       heimdall_v2_version:
         type: string
-        default: "0.5.3"
+        default: "0.5.4"
       bor_version:
         type: string
-        default: "2.5.5"
+        default: "2.5.6"
       erigon_version:
         type: string
         default: "3.3.0"
