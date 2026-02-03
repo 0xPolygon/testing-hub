@@ -22,7 +22,7 @@ runs:
       shell: bash
       run: |
         echo "📦 Cloning chaos-utils..."
-        git clone https://github.com/jihwankim/chaos-utils.git /tmp/chaos-utils
+        git clone https://github.com/jhkimqd/chaos-utils.git /tmp/chaos-utils
         cd /tmp/chaos-utils
         git checkout ${{ inputs.chaos_utils_version }}
         echo "✅ Cloned chaos-utils version: $(git rev-parse --short HEAD)"
