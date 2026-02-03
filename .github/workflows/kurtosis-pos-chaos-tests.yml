@@ -243,9 +243,11 @@ jobs:
           path: reports/${{ matrix.scenario }}.json
           if-no-files-found: warn
 
-      - name: Cleanup enclave
+      - name: Collect logs and cleanup enclave
         if: always()
-        run: kurtosis enclave rm -f ${{ env.ENCLAVE_NAME }} || true
+        uses: ./.github/actions/kurtosis-post-run
+        with:
+          enclave_name: ${{ env.ENCLAVE_NAME }}
 
   summary:
     runs-on: ubuntu-latest
