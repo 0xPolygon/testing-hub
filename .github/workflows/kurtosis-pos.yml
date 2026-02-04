@@ -21,7 +21,13 @@ on:
       test_duration_minutes:
         description: how long to keep the test environment running (in minutes)
         type: string
-        default: 60
+        default: "60"
+
+      # Chaos testing configuration
+      chaos_scenarios:
+        description: Select chaos scenarios to run (automated CI defaults to random)
+        type: string
+        default: "random"
 
   workflow_dispatch:
     inputs:
@@ -43,10 +49,68 @@ on:
       test_duration_minutes:
         description: How long to keep the test environment running (in minutes)
         type: string
-        default: 60
+        default: "60"
+
+      # Chaos testing configuration
+      chaos_scenarios:
+        description: Select chaos scenarios to run (manual triggers default to none)
+        type: choice
+        options:
+          # === No Chaos Testing (Standard Test Only) ===
+          - "none"                                    # Skip chaos tests (default for manual triggers)
+
+          # === Random Selection ===
+          - "random"                                  # Randomly select 3-5 scenarios
+
+          # === Container Lifecycle Tests ===
+          - "rolling-validator-restart"               # Sequential restart
+          - "simultaneous-validator-restart"          # All validators restart at once
+          - "test-single-restart"                     # Single validator restart
+
+          # === Resource Stress Tests ===
+          - "cpu-starved-validator"                   # Limit CPU to 50%
+          - "memory-pressure-validator"               # Constrain memory to 512MB
+
+          # === Network Partition Tests ===
+          - "validator-partition"                     # Isolate validator from network
+          - "asymmetric-network-partition"            # Asymmetric network split
+          - "split-brain-partition"                   # Split brain scenario
+          - "regional-network-outage"                 # Regional outage simulation
+
+          # === Network Degradation Tests ===
+          - "bandwidth-throttle"                      # Limit bandwidth
+          - "progressive-network-degradation"         # Progressive network quality loss
+          - "cascading-latency-spike"                 # Latency increases cascade
+
+          # === Dependency Failures ===
+          - "rabbitmq-failure"                        # RabbitMQ service failure
+          - "latency-spike-l1-rpc"                    # L1 RPC latency spike
+          - "mixed-dependency-failure"                # Multiple dependencies fail
+          - "total-dependency-isolation"              # Complete dependency isolation
+          - "rpc-node-degradation"                    # RPC node performance degradation
+
+          # === Other Scenarios ===
+          - "checkpoint-delay-cascade"                # Checkpoint delays cascade
+          - "intermittent-checkpoint-failures"        # Random checkpoint failures
+          - "monitoring-stress-test"                  # Monitor system under stress
+
+          # === Combined Test Suites ===
+          - "rolling-validator-restart,simultaneous-validator-restart"  # Both restart tests
+          - "cpu-starved-validator,memory-pressure-validator"           # Resource tests
+          - "validator-partition,split-brain-partition"                 # Partition tests
+
+          # === Full Test Suite ===
+          - "all"                                     # All chaos tests (dynamically loaded)
+
+        default: "none"
+
+  schedule:
+    # Run nightly at 2 AM UTC with random chaos scenario selection
+    - cron: '0 2 * * *'
 
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
+  ENCLAVE_NAME: kurtosis-pos-${{ github.run_id }}
 
 permissions:
   contents: read
@@ -54,9 +118,11 @@ permissions:
   id-token: write
 
 jobs:
-  test:
+  deploy-enclave:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    outputs:
+      enclave_name: ${{ env.ENCLAVE_NAME }}
     steps:
       - uses: actions/checkout@v6
 
@@ -72,7 +138,6 @@ jobs:
         run: |
           args_file="${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml"
           echo "Using args file: ${args_file}"
-          echo "ARGS_FILE=${args_file}" >> "${GITHUB_ENV}"
 
           # Customize component versions
           if [[ "${{ inputs.heimdall_v2_version }}" ]]; then
@@ -100,28 +165,243 @@ jobs:
       - name: Deploy enclave
         working-directory: kurtosis-pos
         run: |
-          enclave_name="kurtosis-pos"
-          echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
-          echo "ENCLAVE_NAME=${enclave_name}"
-          kurtosis run --enclave $enclave_name --args-file ${{ env.ARGS_FILE }} .
+          echo "Deploying enclave: ${{ env.ENCLAVE_NAME }}"
+          kurtosis run --enclave ${{ env.ENCLAVE_NAME }} --args-file ${{ github.workspace }}/kurtosis-pos/.github/configs/rio.yml .
 
       - name: Inspect enclave
         run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
+
+  chaos-setup:
+    runs-on: ubuntu-latest
+    needs: deploy-enclave
+    if: ${{ inputs.chaos_scenarios != 'none' }}
+    timeout-minutes: 10
+    outputs:
+      scenarios: ${{ steps.scenarios.outputs.scenarios_json }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup chaos-utils
+        uses: ./.github/actions/setup-chaos-utils
+        with:
+          chaos_utils_version: "main"
+          go_version: "1.24"
+
+      - name: Determine scenarios to run
+        id: scenarios
+        run: |
+          # For scheduled runs, default to random selection
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            input="random"
+          else
+            input="${{ inputs.chaos_scenarios }}"
+          fi
+
+          cd /tmp/chaos-utils/scenarios/polygon-chain
+
+          # Handle different input options
+          if [[ "$input" == "all" ]]; then
+            echo "Discovering all available scenarios from chaos-utils repo..."
+            scenarios=$(ls -1 *.yaml 2>/dev/null | sed 's/\.yaml$//' | paste -sd ',' - || echo "")
+
+            if [[ -z "$scenarios" ]]; then
+              echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+              exit 1
+            fi
+
+            echo "Found $(echo "$scenarios" | tr ',' '\n' | wc -l) scenarios"
+          elif [[ "$input" == "random" ]]; then
+            echo "Randomly selecting scenarios from chaos-utils repo..."
+            all_scenarios=$(ls -1 *.yaml 2>/dev/null | sed 's/\.yaml$//' || echo "")
+
+            if [[ -z "$all_scenarios" ]]; then
+              echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+              exit 1
+            fi
+
+            # Randomly select 3-5 scenarios
+            num_scenarios=$((RANDOM % 3 + 3))
+            total_available=$(echo "$all_scenarios" | wc -l)
+
+            # If we have fewer scenarios available, use all of them
+            if [[ $total_available -lt $num_scenarios ]]; then
+              num_scenarios=$total_available
+            fi
+
+            scenarios=$(echo "$all_scenarios" | shuf -n $num_scenarios | paste -sd ',' -)
+            echo "Randomly selected $num_scenarios scenarios from $total_available available"
+          else
+            scenarios="$input"
+          fi
+
+          echo "scenarios=${scenarios}" >> "${GITHUB_OUTPUT}"
+
+          # Convert comma-separated scenarios to JSON array for matrix strategy
+          scenarios_json=$(echo "$scenarios" | tr ',' '\n' | jq -R . | jq -s -c .)
+          echo "scenarios_json=${scenarios_json}" >> "${GITHUB_OUTPUT}"
+
+          echo "Running scenarios: ${scenarios}"
+          echo "Scenarios JSON: ${scenarios_json}"
+
+  monitor:
+    runs-on: ubuntu-latest
+    needs: [deploy-enclave, chaos-setup]
+    if: always() && needs.deploy-enclave.result == 'success'
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare environment
+        uses: ./.github/actions/kurtosis-pre-run
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_token: ${{ secrets.DOCKER_TOKEN }}
+          kurtosis_package_type: kurtosis-pos
+          kurtosis_package_version: ${{ inputs.kurtosis_pos_package_version }}
+
+      - name: Verify enclave is running
+        run: |
+          echo "Monitoring enclave: ${{ needs.deploy-enclave.outputs.enclave_name }}"
+          kurtosis enclave inspect ${{ needs.deploy-enclave.outputs.enclave_name }}
 
       - name: Monitor system
         working-directory: .github/scripts
         run: ./idle.sh ${{ inputs.test_duration_minutes }}
 
-      - name: Collect logs and enclave state
+  chaos-test:
+    runs-on: ubuntu-latest
+    needs: [deploy-enclave, chaos-setup]
+    if: ${{ needs.chaos-setup.outputs.scenarios != '[]' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false  # Continue running other tests even if one fails
+      max-parallel: 1  # Run tests sequentially to avoid conflicts on shared enclave
+      matrix:
+        scenario: ${{ fromJson(needs.chaos-setup.outputs.scenarios) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare environment
+        uses: ./.github/actions/kurtosis-pre-run
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_token: ${{ secrets.DOCKER_TOKEN }}
+          kurtosis_package_type: kurtosis-pos
+          kurtosis_package_version: ${{ inputs.kurtosis_pos_package_version }}
+
+      - name: Setup chaos-utils
+        uses: ./.github/actions/setup-chaos-utils
+        with:
+          chaos_utils_version: "main"
+          go_version: "1.24"
+
+      - name: Run chaos test - ${{ matrix.scenario }}
+        run: |
+          echo "Running scenario: ${{ matrix.scenario }}"
+          echo "Target enclave: ${{ needs.deploy-enclave.outputs.enclave_name }}"
+          /usr/local/bin/chaos-runner run \
+            --scenario /tmp/chaos-utils/scenarios/polygon-chain/${{ matrix.scenario }}.yaml \
+            --enclave ${{ needs.deploy-enclave.outputs.enclave_name }}
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report-${{ matrix.scenario }}
+          path: reports/${{ matrix.scenario }}.json
+          if-no-files-found: warn
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [deploy-enclave, chaos-test, monitor]
+    if: always() && needs.deploy-enclave.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare environment
+        uses: ./.github/actions/kurtosis-pre-run
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_token: ${{ secrets.DOCKER_TOKEN }}
+          kurtosis_package_type: kurtosis-pos
+          kurtosis_package_version: ${{ inputs.kurtosis_pos_package_version }}
+
+      - name: Collect logs and cleanup enclave
         if: always()
         uses: ./.github/actions/kurtosis-post-run
         with:
-          enclave_name: ${{ env.ENCLAVE_NAME }}
+          enclave_name: ${{ needs.deploy-enclave.outputs.enclave_name }}
+
+  chaos-summary:
+    runs-on: ubuntu-latest
+    needs: [chaos-setup, chaos-test]
+    if: always() && needs.chaos-setup.result != 'skipped'
+    outputs:
+      failed_scenarios: ${{ steps.generate-summary.outputs.failed_scenarios }}
+      test_status: ${{ steps.generate-summary.outputs.test_status }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download all test reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: chaos-report-*
+          path: chaos-reports/
+          merge-multiple: true
+
+      - name: Generate test summary
+        id: generate-summary
+        run: |
+          reports_dir="chaos-reports"
+
+          echo "## Chaos Engineering Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ -d "$reports_dir" ]] && [[ -n "$(ls -A $reports_dir/*.json 2>/dev/null)" ]]; then
+            passed=0
+            failed=0
+            failed_scenarios=()
+
+            for report in "$reports_dir"/*.json; do
+              scenario_name=$(basename "$report" .json)
+              # Check if scenario passed (adjust based on your JSON structure)
+              if jq -e '.status == "passed" or .passed == true' "$report" >/dev/null 2>&1; then
+                ((passed++))
+                echo "- ✅ **${scenario_name}**: PASSED" >> $GITHUB_STEP_SUMMARY
+              else
+                ((failed++))
+                failed_scenarios+=("$scenario_name")
+                echo "- ❌ **${scenario_name}**: FAILED" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- **Total**: $((passed + failed))" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: $passed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: $failed" >> $GITHUB_STEP_SUMMARY
+
+            # Export for Slack notification
+            if [[ ${#failed_scenarios[@]} -gt 0 ]]; then
+              failed_list=$(IFS=', '; echo "${failed_scenarios[*]}")
+              echo "failed_scenarios=$failed_list" >> $GITHUB_OUTPUT
+              echo "test_status=failed" >> $GITHUB_OUTPUT
+              exit 1  # Fail the workflow if any tests failed
+            else
+              echo "failed_scenarios=" >> $GITHUB_OUTPUT
+              echo "test_status=passed" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⚠️ No test reports found" >> $GITHUB_STEP_SUMMARY
+            echo "failed_scenarios=" >> $GITHUB_OUTPUT
+            echo "test_status=no-reports" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
   slack:
     runs-on: ubuntu-latest
     if: always()
-    needs: test
+    needs: [deploy-enclave, chaos-test, monitor, chaos-summary]
     steps:
       - uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         with:
@@ -129,14 +409,14 @@ jobs:
           method: chat.postMessage
           payload: |
             {
-              "channel": ${{ env.SLACK_CHANNEL_ID }},
-              "text": "Testing Hub Nightly - Test Summary",
+              "channel": "${{ env.SLACK_CHANNEL_ID }}",
+              "text": "Testing Hub - Test Summary",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Testing Hub Nightly: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: kurtosis-pos\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
+                    "text": "Testing Hub: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: kurtosis-pos\n- enclave: ${{ needs.deploy-enclave.outputs.enclave_name }}\n- deployment: ${{ needs.deploy-enclave.result }}\n${{ needs.chaos-summary.result != 'skipped' && format('- chaos tests: {0}', needs.chaos-summary.result) || '' }}\n${{ needs.chaos-summary.outputs.failed_scenarios != '' && format('- *failed scenarios*: {0}', needs.chaos-summary.outputs.failed_scenarios) || '' }}\n- monitoring: ${{ needs.monitor.result }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
                   }
                 }
               ]
