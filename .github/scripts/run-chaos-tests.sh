@@ -53,10 +53,10 @@ for scenario in "${scenarios[@]}"; do
   # Run chaos-runner and capture exit code
   if /usr/local/bin/chaos-runner run --scenario "${scenario}" --enclave "${enclave_name}"; then
     log_info "✅ Scenario '${scenario_name}' passed"
-    ((passed_tests++))
+    passed_tests=$((passed_tests + 1))
   else
     log_error "❌ Scenario '${scenario_name}' failed"
-    ((failed_tests++))
+    failed_tests=$((failed_tests + 1))
     failed_scenarios+=("${scenario_name}")
   fi
 

@@ -135,9 +135,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     outputs:
-      enclave_name: ${{ env.ENCLAVE_NAME }}
+      enclave_name: ${{ steps.set-enclave.outputs.enclave_name }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set enclave name output
+        id: set-enclave
+        run: echo "enclave_name=${{ env.ENCLAVE_NAME }}" >> $GITHUB_OUTPUT
 
       - name: Prepare environment
         uses: ./.github/actions/kurtosis-pre-run
@@ -286,7 +290,7 @@ jobs:
   chaos-test:
     runs-on: ubuntu-latest
     needs: [test, chaos-setup]
-    if: ${{ needs.chaos-setup.outputs.scenarios != '[]' }}
+    if: ${{ needs.chaos-setup.result == 'success' && needs.chaos-setup.outputs.scenarios != '' && needs.chaos-setup.outputs.scenarios != '[]' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false  # Continue running other tests even if one fails
@@ -372,13 +376,15 @@ jobs:
           echo "## Chaos Engineering Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ -d "$reports_dir" ]] && [[ -n "$(ls -A $reports_dir/*.json 2>/dev/null)" ]]; then
+          if [[ -d "$reports_dir" ]] && [[ -n "$(find "$reports_dir" -name '*.json' 2>/dev/null)" ]]; then
             passed=0
             failed=0
             failed_scenarios=()
 
-            for report in "$reports_dir"/*.json; do
-              scenario_name=$(basename "$report" .json)
+            while IFS= read -r report; do
+              # Preserve subdirectory structure in scenario name
+              relative="${report#"$reports_dir"/}"
+              scenario_name="${relative%.json}"
               # Check if scenario passed (adjust based on your JSON structure)
               if jq -e '.status == "passed" or .passed == true' "$report" >/dev/null 2>&1; then
                 ((passed++))
@@ -388,7 +394,7 @@ jobs:
                 failed_scenarios+=("$scenario_name")
                 echo "- ❌ **${scenario_name}**: FAILED" >> $GITHUB_STEP_SUMMARY
               fi
-            done
+            done < <(find "$reports_dir" -type f -name '*.json' | sort)
 
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Summary" >> $GITHUB_STEP_SUMMARY
