@@ -190,145 +190,143 @@ jobs:
           chaos_utils_version: ${{ inputs.chaos_utils_version }}
           go_version: "1.24"
 
-      - name: Start monitoring in background
-        working-directory: .github/scripts
+      - name: Run monitoring and chaos tests
         run: |
+          # Start monitor in background
           echo "Starting system monitor in background..."
-          # Use nohup to detach from the shell and redirect output
-          nohup ./idle.sh ${{ inputs.test_duration_minutes }} > /tmp/monitor.log 2>&1 &
+          .github/scripts/idle.sh ${{ inputs.test_duration_minutes }} > /tmp/monitor.log 2>&1 &
           MONITOR_PID=$!
-          echo "MONITOR_PID=${MONITOR_PID}" >> "${GITHUB_ENV}"
           echo "Monitor started with PID: ${MONITOR_PID}"
 
-          # Create sentinel file to track monitor status
-          echo "running" > /tmp/monitor_status
-
-          # Background process to update sentinel when monitor completes
-          (wait ${MONITOR_PID}; echo "completed" > /tmp/monitor_status) &
-
-      - name: Run chaos tests
-        if: ${{ inputs.chaos_scenarios != 'none' }}
-        run: |
-          # For scheduled runs, default to random selection
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            input="random"
-          else
-            input="${{ inputs.chaos_scenarios }}"
-          fi
-
-          cd /tmp/chaos-utils/scenarios/polygon-chain
-
-          # Handle different input options
-          if [[ "$input" == "all" ]]; then
-            echo "Discovering all available scenarios from chaos-utils repo..."
-            scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort | paste -sd ',' - || echo "")
-
-            if [[ -z "$scenarios" ]]; then
-              echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
-              exit 1
-            fi
-
-            echo "Found $(echo "$scenarios" | tr ',' '\n' | wc -l) scenarios"
-          elif [[ "$input" == "random" ]]; then
-            echo "Randomly selecting scenarios from chaos-utils repo..."
-            all_scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort || echo "")
-
-            if [[ -z "$all_scenarios" ]]; then
-              echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
-              exit 1
-            fi
-
-            # Randomly select 3-5 scenarios
-            num_scenarios=$((RANDOM % 3 + 3))
-            total_available=$(echo "$all_scenarios" | wc -l)
-
-            if [[ $total_available -lt $num_scenarios ]]; then
-              num_scenarios=$total_available
-            fi
-
-            scenarios=$(echo "$all_scenarios" | shuf -n $num_scenarios | paste -sd ',' -)
-            echo "Randomly selected $num_scenarios scenarios from $total_available available"
-          else
-            scenarios="$input"
-          fi
-
-          echo "Running scenarios: ${scenarios}"
-
-          # Run each scenario
-          IFS=',' read -ra SCENARIO_ARRAY <<< "$scenarios"
-          passed=0
-          failed=0
-          failed_scenarios=()
-
-          for scenario in "${SCENARIO_ARRAY[@]}"; do
-            echo "=========================================="
-            echo "Running scenario: ${scenario}"
-            echo "=========================================="
-
-            if /usr/local/bin/chaos-runner run \
-                --scenario "/tmp/chaos-utils/scenarios/polygon-chain/${scenario}.yaml" \
-                --enclave "${{ env.ENCLAVE_NAME }}"; then
-              echo "✅ Scenario '${scenario}' passed"
-              passed=$((passed + 1))
-            else
-              echo "❌ Scenario '${scenario}' failed"
-              failed=$((failed + 1))
-              failed_scenarios+=("${scenario}")
-            fi
-            echo ""
-          done
-
-          # Summary
-          echo "=========================================="
-          echo "Chaos Testing Summary"
-          echo "=========================================="
-          echo "Total: $((passed + failed))"
-          echo "Passed: ${passed}"
-          echo "Failed: ${failed}"
-
-          if [[ ${failed} -gt 0 ]]; then
-            echo "Failed scenarios: ${failed_scenarios[*]}"
+          # Verify monitor started
+          sleep 2
+          if ! kill -0 ${MONITOR_PID} 2>/dev/null; then
+            echo "❌ Monitor failed to start"
             exit 1
           fi
+          echo "✅ Monitor is running"
 
-      - name: Wait for monitor to complete
-        if: always()
-        run: |
-          echo "Waiting for monitor to complete..."
+          # Run chaos tests if enabled
+          if [[ "${{ inputs.chaos_scenarios }}" != "none" ]]; then
+            echo ""
+            echo "=========================================="
+            echo "Running Chaos Tests"
+            echo "=========================================="
 
-          # Poll for monitor completion using sentinel file
-          timeout=300  # 5 minutes max wait after chaos tests
-          elapsed=0
+            # For scheduled runs, default to random selection
+            if [[ "${{ github.event_name }}" == "schedule" ]]; then
+              input="random"
+            else
+              input="${{ inputs.chaos_scenarios }}"
+            fi
 
-          while [[ $elapsed -lt $timeout ]]; do
-            if [[ -f /tmp/monitor_status ]]; then
-              status=$(cat /tmp/monitor_status)
-              if [[ "$status" == "completed" ]]; then
-                echo "✅ Monitor completed successfully"
-                break
+            cd /tmp/chaos-utils/scenarios/polygon-chain
+
+            # Handle different input options
+            if [[ "$input" == "all" ]]; then
+              echo "Discovering all available scenarios from chaos-utils repo..."
+              scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort | paste -sd ',' - || echo "")
+
+              if [[ -z "$scenarios" ]]; then
+                echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+                kill ${MONITOR_PID} 2>/dev/null || true
+                exit 1
               fi
+
+              echo "Found $(echo "$scenarios" | tr ',' '\n' | wc -l) scenarios"
+            elif [[ "$input" == "random" ]]; then
+              echo "Randomly selecting scenarios from chaos-utils repo..."
+              all_scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort || echo "")
+
+              if [[ -z "$all_scenarios" ]]; then
+                echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+                kill ${MONITOR_PID} 2>/dev/null || true
+                exit 1
+              fi
+
+              # Randomly select 3-5 scenarios
+              num_scenarios=$((RANDOM % 3 + 3))
+              total_available=$(echo "$all_scenarios" | wc -l)
+
+              if [[ $total_available -lt $num_scenarios ]]; then
+                num_scenarios=$total_available
+              fi
+
+              scenarios=$(echo "$all_scenarios" | shuf -n $num_scenarios | paste -sd ',' -)
+              echo "Randomly selected $num_scenarios scenarios from $total_available available"
+            else
+              scenarios="$input"
             fi
 
-            # Check if process is still running
-            if [[ -n "${{ env.MONITOR_PID }}" ]] && ! kill -0 ${{ env.MONITOR_PID }} 2>/dev/null; then
-              echo "✅ Monitor process finished"
-              break
+            echo "Running scenarios: ${scenarios}"
+            echo ""
+
+            # Run each scenario
+            IFS=',' read -ra SCENARIO_ARRAY <<< "$scenarios"
+            passed=0
+            failed=0
+            failed_scenarios=()
+
+            for scenario in "${SCENARIO_ARRAY[@]}"; do
+              echo "=========================================="
+              echo "Running scenario: ${scenario}"
+              echo "=========================================="
+
+              if /usr/local/bin/chaos-runner run \
+                  --scenario "/tmp/chaos-utils/scenarios/polygon-chain/${scenario}.yaml" \
+                  --enclave "${{ env.ENCLAVE_NAME }}"; then
+                echo "✅ Scenario '${scenario}' passed"
+                passed=$((passed + 1))
+              else
+                echo "❌ Scenario '${scenario}' failed"
+                failed=$((failed + 1))
+                failed_scenarios+=("${scenario}")
+              fi
+              echo ""
+            done
+
+            # Chaos testing summary
+            echo "=========================================="
+            echo "Chaos Testing Summary"
+            echo "=========================================="
+            echo "Total: $((passed + failed))"
+            echo "Passed: ${passed}"
+            echo "Failed: ${failed}"
+
+            if [[ ${failed} -gt 0 ]]; then
+              echo "Failed scenarios: ${failed_scenarios[*]}"
+              CHAOS_EXIT_CODE=1
+            else
+              CHAOS_EXIT_CODE=0
             fi
-
-            sleep 10
-            elapsed=$((elapsed + 10))
-            echo "Waiting for monitor... (${elapsed}s elapsed)"
-          done
-
-          if [[ $elapsed -ge $timeout ]]; then
-            echo "⚠️  Timeout waiting for monitor, continuing anyway"
+          else
+            echo "Chaos testing disabled, monitoring only"
+            CHAOS_EXIT_CODE=0
           fi
 
-          # Display monitor logs if available
+          # Wait for monitor to complete
+          echo ""
+          echo "=========================================="
+          echo "Waiting for monitor to complete..."
+          echo "=========================================="
+
+          if kill -0 ${MONITOR_PID} 2>/dev/null; then
+            echo "Monitor is still running, waiting for completion..."
+            wait ${MONITOR_PID}
+            echo "✅ Monitor completed"
+          else
+            echo "✅ Monitor already completed"
+          fi
+
+          # Display monitor logs
           if [[ -f /tmp/monitor.log ]]; then
-            echo "Monitor log output:"
+            echo ""
+            echo "Monitor log output (last 50 lines):"
             tail -n 50 /tmp/monitor.log
           fi
+
+          # Exit with chaos test result
+          exit ${CHAOS_EXIT_CODE}
 
       - name: Collect logs and cleanup enclave
         if: always()
