@@ -1,0 +1,109 @@
+name: setup-chaos-utils
+description: Install and configure chaos-utils for testing
+
+inputs:
+  chaos_utils_version:
+    description: Version/branch/tag of chaos-utils to use
+    default: "main"
+  go_version:
+    description: Version of Go to install
+    default: "1.24"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: false
+
+    - name: Clone chaos-utils repository
+      shell: bash
+      run: |
+        echo "📦 Cloning chaos-utils..."
+        git clone https://github.com/jhkimqd/chaos-utils.git /tmp/chaos-utils
+        cd /tmp/chaos-utils
+        git checkout ${{ inputs.chaos_utils_version }}
+        echo "✅ Cloned chaos-utils version: $(git rev-parse --short HEAD)"
+
+    - name: Setup chaos-utils Docker image
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        VERSION="${{ inputs.chaos_utils_version }}"
+        IMAGE_TAG="jhkimqd/chaos-utils:${VERSION}"
+
+        echo "🔍 Checking for pre-built image: ${IMAGE_TAG}"
+
+        # Try to pull the version-specific image
+        if docker pull "${IMAGE_TAG}" 2>/dev/null; then
+          echo "✅ Successfully pulled ${IMAGE_TAG} from Docker Hub"
+          # Tag it as latest for local consistency
+          docker tag "${IMAGE_TAG}" jhkimqd/chaos-utils:latest
+        elif [[ "${VERSION}" == "main" ]] && docker pull jhkimqd/chaos-utils:latest 2>/dev/null; then
+          # Only fall back to latest if we're using main branch
+          echo "✅ Successfully pulled latest image from Docker Hub (main branch fallback)"
+        else
+          echo "⚠️  No pre-built image found for ${VERSION}, building locally..."
+          echo "🐳 Building chaos-utils Docker image..."
+          docker build . --tag jhkimqd/chaos-utils:latest --file ./Dockerfile.chaos-utils
+          # Also tag with the version for consistency
+          docker tag jhkimqd/chaos-utils:latest "${IMAGE_TAG}"
+          echo "✅ Docker image built successfully"
+        fi
+
+        docker images | grep chaos-utils
+
+    - name: Build or extract chaos-runner binary
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        # Check if source code exists to build from
+        if [[ -d "cmd/chaos-runner" ]]; then
+          echo "🔨 Building chaos-runner binary from source..."
+          make build-runner
+          ls -lh bin/chaos-runner
+          echo "✅ Binary built successfully"
+        else
+          echo "⚠️  Source code not found, extracting binary from Docker image..."
+          mkdir -p bin
+          # Extract binary from Docker image if it exists there
+          if docker run --rm -v "$(pwd)/bin:/output" jhkimqd/chaos-utils:latest sh -c 'if [ -f /usr/local/bin/chaos-runner ]; then cp /usr/local/bin/chaos-runner /output/; else echo "Binary not found in image"; exit 1; fi' 2>/dev/null; then
+            echo "✅ Binary extracted from Docker image"
+            ls -lh bin/chaos-runner
+          else
+            echo "❌ Could not find chaos-runner binary"
+            echo "Please ensure cmd/chaos-runner exists in the repository or the binary is in the Docker image"
+            exit 1
+          fi
+        fi
+
+    - name: Install chaos-runner
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "📥 Installing chaos-runner to /usr/local/bin..."
+        sudo cp bin/chaos-runner /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chaos-runner
+        chaos-runner --version || chaos-runner --help || echo "chaos-runner installed (no version info available)"
+        echo "✅ chaos-runner installed"
+
+    - name: Copy chaos scenarios
+      shell: bash
+      working-directory: /tmp/chaos-utils
+      run: |
+        echo "📋 Copying chaos scenarios..."
+        mkdir -p ${{ github.workspace }}/chaos-scenarios
+        cp -r scenarios/polygon-chain/* ${{ github.workspace }}/chaos-scenarios/
+        ls -la ${{ github.workspace }}/chaos-scenarios/
+        echo "✅ Scenarios copied to workspace"
+
+    - name: Verify installation
+      shell: bash
+      run: |
+        echo "🔍 Verifying chaos-utils installation..."
+        echo "chaos-runner: $(which chaos-runner)"
+        echo "Docker images:"
+        docker images | grep chaos
+        echo "✅ Installation verified"

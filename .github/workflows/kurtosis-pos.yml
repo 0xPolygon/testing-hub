@@ -21,7 +21,17 @@ on:
       test_duration_minutes:
         description: how long to keep the test environment running (in minutes)
         type: string
-        default: 60
+        default: "60"
+
+      # Chaos testing configuration
+      chaos_utils_version:
+        description: chaos-utils version/branch to use
+        type: string
+        default: "main"
+      chaos_scenarios:
+        description: Select chaos scenarios to run (automated CI defaults to random)
+        type: string
+        default: "random"
 
   workflow_dispatch:
     inputs:
@@ -43,10 +53,77 @@ on:
       test_duration_minutes:
         description: How long to keep the test environment running (in minutes)
         type: string
-        default: 60
+        default: "60"
+
+      # Chaos testing configuration
+      chaos_utils_version:
+        description: chaos-utils version/branch to use
+        type: string
+        default: "main"
+      chaos_scenarios:
+        description: Select chaos scenarios to run (manual triggers default to none)
+        type: choice
+        options:
+          # === No Chaos Testing (Standard Test Only) ===
+          - "none"                                    # Skip chaos tests (default for manual triggers)
+
+          # === Random Selection ===
+          - "random"                                  # Randomly select 3-5 scenarios
+
+          # === Application-Level Tests (applications/) ===
+          - "applications/rolling-validator-restart"               # Sequential restart
+          - "applications/simultaneous-validator-restart"          # All validators restart at once
+          - "applications/test-single-restart"                     # Single validator restart
+          - "applications/rabbitmq-failure"                        # RabbitMQ service failure
+          - "applications/mixed-dependency-failure"                # Multiple dependencies fail
+          - "applications/intermittent-checkpoint-failures"        # Random checkpoint failures
+          - "applications/cascading-failure-storm"                 # Cascading failure storm
+          - "applications/catastrophic-multi-validator-failure"    # Catastrophic multi-validator failure
+          - "applications/validator-crash-during-checkpoint"       # Validator crash during checkpoint
+
+          # === CPU & Memory Tests (cpu-memory/) ===
+          - "cpu-memory/cpu-starved-validator"                     # Limit CPU to 50%
+          - "cpu-memory/memory-pressure-validator"                 # Constrain memory to 512MB
+          - "cpu-memory/monitoring-stress-test"                    # Monitor system under stress
+          - "cpu-memory/total-resource-exhaustion"                 # Total resource exhaustion
+
+          # === Filesystem Tests (filesystem/) ===
+          - "filesystem/slow-disk-io-validator"                    # Slow disk I/O
+
+          # === Network Tests (network/) ===
+          - "network/validator-partition"                          # Isolate validator from network
+          - "network/asymmetric-network-partition"                 # Asymmetric network split
+          - "network/split-brain-partition"                        # Split brain scenario
+          - "network/regional-network-outage"                      # Regional outage simulation
+          - "network/bandwidth-throttle"                           # Limit bandwidth
+          - "network/progressive-network-degradation"              # Progressive network quality loss
+          - "network/cascading-latency-spike"                      # Latency increases cascade
+          - "network/latency-spike-l1-rpc"                         # L1 RPC latency spike
+          - "network/total-dependency-isolation"                   # Complete dependency isolation
+          - "network/rpc-node-degradation"                         # RPC node performance degradation
+          - "network/checkpoint-delay-cascade"                     # Checkpoint delays cascade
+          - "network/intermittent-connection-drops"                # Intermittent connection drops
+          - "network/massive-packet-loss"                          # Massive packet loss
+          - "network/extreme-latency-consensus"                    # Extreme latency on consensus
+          - "network/extreme-packet-reorder"                       # Extreme packet reordering
+          - "network/packet-reorder-consensus"                     # Packet reordering on consensus
+          - "network/severe-bandwidth-throttle"                    # Severe bandwidth throttle
+          - "network/slow-dns-resolution"                          # Slow DNS resolution
+          - "network/slow-response-validator"                      # Slow response from validator
+          - "network/extreme-combined-network-chaos"               # Extreme combined network chaos
+
+          # === Full Test Suite ===
+          - "all"                                     # All chaos tests (dynamically loaded)
+
+        default: "none"
+
+  schedule:
+    # Run nightly at 2 AM UTC with random chaos scenario selection
+    - cron: '0 2 * * *'
 
 env:
   SLACK_CHANNEL_ID: C09UY6RJ38U
+  ENCLAVE_NAME: kurtosis-pos-${{ github.run_id }}
 
 permissions:
   contents: read
@@ -160,19 +237,158 @@ jobs:
       - name: Deploy enclave
         working-directory: kurtosis-pos
         run: |
-          enclave_name="kurtosis-pos"
-          echo "ENCLAVE_NAME=${enclave_name}" >> "${GITHUB_ENV}"
-          echo "ENCLAVE_NAME=${enclave_name}"
-          kurtosis run --enclave $enclave_name --args-file ${{ env.ARGS_FILE }} .
+          echo "Deploying enclave: ${{ env.ENCLAVE_NAME }}"
+          kurtosis run --enclave ${{ env.ENCLAVE_NAME }} --args-file ${{ env.ARGS_FILE }} .
 
       - name: Inspect enclave
         run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
 
-      - name: Monitor system
-        working-directory: .github/scripts
-        run: ./idle.sh ${{ inputs.test_duration_minutes }}
+      - name: Setup chaos-utils
+        if: ${{ inputs.chaos_scenarios != 'none' }}
+        uses: ./.github/actions/setup-chaos-utils
+        with:
+          chaos_utils_version: ${{ inputs.chaos_utils_version }}
+          go_version: "1.24"
 
-      - name: Collect logs and enclave state
+      - name: Run monitoring and chaos tests
+        run: |
+          # Start monitor in background
+          echo "Starting system monitor in background..."
+          .github/scripts/idle.sh ${{ inputs.test_duration_minutes }} > /tmp/monitor.log 2>&1 &
+          MONITOR_PID=$!
+          echo "Monitor started with PID: ${MONITOR_PID}"
+
+          # Verify monitor started
+          sleep 2
+          if ! kill -0 ${MONITOR_PID} 2>/dev/null; then
+            echo "❌ Monitor failed to start"
+            exit 1
+          fi
+          echo "✅ Monitor is running"
+
+          # Run chaos tests if enabled
+          if [[ "${{ inputs.chaos_scenarios }}" != "none" ]]; then
+            echo ""
+            echo "=========================================="
+            echo "Running Chaos Tests"
+            echo "=========================================="
+
+            # For scheduled runs, default to random selection
+            if [[ "${{ github.event_name }}" == "schedule" ]]; then
+              input="random"
+            else
+              input="${{ inputs.chaos_scenarios }}"
+            fi
+
+            cd /tmp/chaos-utils/scenarios/polygon-chain
+
+            # Handle different input options
+            if [[ "$input" == "all" ]]; then
+              echo "Discovering all available scenarios from chaos-utils repo..."
+              scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort | paste -sd ',' - || echo "")
+
+              if [[ -z "$scenarios" ]]; then
+                echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+                kill ${MONITOR_PID} 2>/dev/null || true
+                exit 1
+              fi
+
+              echo "Found $(echo "$scenarios" | tr ',' '\n' | wc -l) scenarios"
+            elif [[ "$input" == "random" ]]; then
+              echo "Randomly selecting scenarios from chaos-utils repo..."
+              all_scenarios=$(find . -name "*.yaml" -type f | sed 's|^\./||' | sed 's/\.yaml$//' | sort || echo "")
+
+              if [[ -z "$all_scenarios" ]]; then
+                echo "❌ No scenario files found in chaos-utils/scenarios/polygon-chain/"
+                kill ${MONITOR_PID} 2>/dev/null || true
+                exit 1
+              fi
+
+              # Randomly select 3-5 scenarios
+              num_scenarios=$((RANDOM % 3 + 3))
+              total_available=$(echo "$all_scenarios" | wc -l)
+
+              if [[ $total_available -lt $num_scenarios ]]; then
+                num_scenarios=$total_available
+              fi
+
+              scenarios=$(echo "$all_scenarios" | shuf -n $num_scenarios | paste -sd ',' -)
+              echo "Randomly selected $num_scenarios scenarios from $total_available available"
+            else
+              scenarios="$input"
+            fi
+
+            echo "Running scenarios: ${scenarios}"
+            echo ""
+
+            # Run each scenario
+            IFS=',' read -ra SCENARIO_ARRAY <<< "$scenarios"
+            passed=0
+            failed=0
+            failed_scenarios=()
+
+            for scenario in "${SCENARIO_ARRAY[@]}"; do
+              echo "=========================================="
+              echo "Running scenario: ${scenario}"
+              echo "=========================================="
+
+              if /usr/local/bin/chaos-runner run \
+                  --scenario "/tmp/chaos-utils/scenarios/polygon-chain/${scenario}.yaml" \
+                  --enclave "${{ env.ENCLAVE_NAME }}"; then
+                echo "✅ Scenario '${scenario}' passed"
+                passed=$((passed + 1))
+              else
+                echo "❌ Scenario '${scenario}' failed"
+                failed=$((failed + 1))
+                failed_scenarios+=("${scenario}")
+              fi
+              echo ""
+            done
+
+            # Chaos testing summary
+            echo "=========================================="
+            echo "Chaos Testing Summary"
+            echo "=========================================="
+            echo "Total: $((passed + failed))"
+            echo "Passed: ${passed}"
+            echo "Failed: ${failed}"
+
+            if [[ ${failed} -gt 0 ]]; then
+              echo "Failed scenarios: ${failed_scenarios[*]}"
+              CHAOS_EXIT_CODE=1
+            else
+              CHAOS_EXIT_CODE=0
+            fi
+          else
+            echo "Chaos testing disabled, monitoring only"
+            CHAOS_EXIT_CODE=0
+          fi
+
+          # Wait for monitor to complete
+          echo ""
+          echo "=========================================="
+          echo "Waiting for monitor to complete..."
+          echo "=========================================="
+
+          if kill -0 ${MONITOR_PID} 2>/dev/null; then
+            echo "Monitor is still running, waiting for completion..."
+            wait ${MONITOR_PID}
+            echo "✅ Monitor completed"
+          else
+            echo "✅ Monitor already completed"
+          fi
+
+          # Display monitor logs
+          if [[ -f /tmp/monitor.log ]]; then
+            echo ""
+            echo "Monitor log output (last 50 lines):"
+            tail -n 50 /tmp/monitor.log
+          fi
+
+          # Exit with chaos test result
+          exit ${CHAOS_EXIT_CODE}
+
+      - name: Collect logs and cleanup enclave
         if: always()
         uses: ./.github/actions/kurtosis-post-run
         with:
@@ -189,14 +405,14 @@ jobs:
           method: chat.postMessage
           payload: |
             {
-              "channel": ${{ env.SLACK_CHANNEL_ID }},
-              "text": "Testing Hub Nightly - Test Summary",
+              "channel": "${{ env.SLACK_CHANNEL_ID }}",
+              "text": "Testing Hub - Test Summary",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Testing Hub Nightly: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: kurtosis-pos\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
+                    "text": "Testing Hub: ${{ contains(needs.*.result, 'failure') && 'some tests failed ❌' || (contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')) && 'some tests were skipped ⚠️' || 'all tests passed ✅' }}\n- environment: kurtosis-pos\n- enclave: ${{ env.ENCLAVE_NAME }}\n- result: ${{ needs.test.result }}\n- duration: ${{ inputs.test_duration_minutes }} minutes\n- <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|explore logs>"
                   }
                 }
               ]
