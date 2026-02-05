@@ -183,6 +183,13 @@ jobs:
       - name: Inspect enclave
         run: kurtosis enclave inspect ${{ env.ENCLAVE_NAME }}
 
+      - name: Setup chaos-utils
+        if: ${{ inputs.chaos_scenarios != 'none' }}
+        uses: ./.github/actions/setup-chaos-utils
+        with:
+          chaos_utils_version: ${{ inputs.chaos_utils_version }}
+          go_version: "1.24"
+
       - name: Start monitoring in background
         working-directory: .github/scripts
         run: |
@@ -198,13 +205,6 @@ jobs:
 
           # Background process to update sentinel when monitor completes
           (wait ${MONITOR_PID}; echo "completed" > /tmp/monitor_status) &
-
-      - name: Setup chaos-utils
-        if: ${{ inputs.chaos_scenarios != 'none' }}
-        uses: ./.github/actions/setup-chaos-utils
-        with:
-          chaos_utils_version: ${{ inputs.chaos_utils_version }}
-          go_version: "1.24"
 
       - name: Run chaos tests
         if: ${{ inputs.chaos_scenarios != 'none' }}
