@@ -27,14 +27,33 @@ runs:
         git checkout ${{ inputs.chaos_utils_version }}
         echo "✅ Cloned chaos-utils version: $(git rev-parse --short HEAD)"
 
-    - name: Build chaos-utils Docker image
+    - name: Setup chaos-utils Docker image
       shell: bash
       working-directory: /tmp/chaos-utils
       run: |
-        echo "🐳 Building chaos-utils Docker image..."
-        make build-image
+        VERSION="${{ inputs.chaos_utils_version }}"
+        IMAGE_TAG="jhkimqd/chaos-utils:${VERSION}"
+
+        echo "🔍 Checking for pre-built image: ${IMAGE_TAG}"
+
+        # Try to pull the version-specific image
+        if docker pull "${IMAGE_TAG}" 2>/dev/null; then
+          echo "✅ Successfully pulled ${IMAGE_TAG} from Docker Hub"
+          # Tag it as latest for local consistency
+          docker tag "${IMAGE_TAG}" jhkimqd/chaos-utils:latest
+        elif [[ "${VERSION}" == "main" ]] && docker pull jhkimqd/chaos-utils:latest 2>/dev/null; then
+          # Only fall back to latest if we're using main branch
+          echo "✅ Successfully pulled latest image from Docker Hub (main branch fallback)"
+        else
+          echo "⚠️  No pre-built image found for ${VERSION}, building locally..."
+          echo "🐳 Building chaos-utils Docker image..."
+          docker build . --tag jhkimqd/chaos-utils:latest --file ./Dockerfile.chaos-utils
+          # Also tag with the version for consistency
+          docker tag jhkimqd/chaos-utils:latest "${IMAGE_TAG}"
+          echo "✅ Docker image built successfully"
+        fi
+
         docker images | grep chaos-utils
-        echo "✅ Docker image built successfully"
 
     - name: Build chaos-runner binary
       shell: bash
