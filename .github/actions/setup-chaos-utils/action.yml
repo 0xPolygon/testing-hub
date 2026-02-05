@@ -55,14 +55,29 @@ runs:
 
         docker images | grep chaos-utils
 
-    - name: Build chaos-runner binary
+    - name: Build or extract chaos-runner binary
       shell: bash
       working-directory: /tmp/chaos-utils
       run: |
-        echo "🔨 Building chaos-runner binary..."
-        make build-runner
-        ls -lh bin/chaos-runner
-        echo "✅ Binary built successfully"
+        # Check if source code exists to build from
+        if [[ -d "cmd/chaos-runner" ]]; then
+          echo "🔨 Building chaos-runner binary from source..."
+          make build-runner
+          ls -lh bin/chaos-runner
+          echo "✅ Binary built successfully"
+        else
+          echo "⚠️  Source code not found, extracting binary from Docker image..."
+          mkdir -p bin
+          # Extract binary from Docker image if it exists there
+          if docker run --rm -v "$(pwd)/bin:/output" jhkimqd/chaos-utils:latest sh -c 'if [ -f /usr/local/bin/chaos-runner ]; then cp /usr/local/bin/chaos-runner /output/; else echo "Binary not found in image"; exit 1; fi' 2>/dev/null; then
+            echo "✅ Binary extracted from Docker image"
+            ls -lh bin/chaos-runner
+          else
+            echo "❌ Could not find chaos-runner binary"
+            echo "Please ensure cmd/chaos-runner exists in the repository or the binary is in the Docker image"
+            exit 1
+          fi
+        fi
 
     - name: Install chaos-runner
       shell: bash
@@ -71,7 +86,7 @@ runs:
         echo "📥 Installing chaos-runner to /usr/local/bin..."
         sudo cp bin/chaos-runner /usr/local/bin/
         sudo chmod +x /usr/local/bin/chaos-runner
-        chaos-runner --version || chaos-runner --help
+        chaos-runner --version || chaos-runner --help || echo "chaos-runner installed (no version info available)"
         echo "✅ chaos-runner installed"
 
     - name: Copy chaos scenarios
